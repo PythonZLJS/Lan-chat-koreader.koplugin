@@ -62,6 +62,15 @@ assert elf[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',elf,18)[0]==40
 offset=struct.unpack_from('<I',elf,28)[0]
 size,count=struct.unpack_from('<HH',elf,42)
 assert all(struct.unpack_from('<I',elf,offset+i*size)[0]!=3 for i in range(count))
+recovery=stage/'recovery'
+(recovery/'bin').mkdir(parents=True)
+shutil.copyfile(stage/'client.lua', recovery/'client.lua')
+shutil.copyfile(stage/'runtime.sh', recovery/'runtime.sh')
+shutil.copyfile(binary, recovery/'bin/neighbour-chat')
+manifest=[]
+for relative in ['client.lua','runtime.sh','bin/neighbour-chat']:
+    manifest.append(hashlib.sha256((stage/relative).read_bytes()).hexdigest()+'  '+relative)
+(stage/'payload.sha256').write_text('\n'.join(manifest)+'\n',encoding='ascii')
 licenses=stage/'LICENSES';licenses.mkdir()
 compiler_root=Path(go).resolve().parents[1]
 if not (compiler_root/'LICENSE').exists(): compiler_root=Path(run('env','GOROOT',output=True).strip())

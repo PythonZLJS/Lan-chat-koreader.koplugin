@@ -14,10 +14,40 @@ local Dispatcher = require("dispatcher")
 
 local source = debug.getinfo(1, "S").source
 local path = source:match("^@(.+)/[^/]+$") or "plugins/neighbourchat.koplugin"
-local Client = dofile(path .. "/client.lua")
+local bootstrap_ok, Bootstrap = pcall(dofile, path .. "/bootstrap.lua")
+local bootstrap_error
+if bootstrap_ok and Bootstrap and Bootstrap.ensure then
+    local ok, ensured, detail = pcall(Bootstrap.ensure, path)
+    if not ok then
+        bootstrap_error = tostring(ensured)
+    elseif not ensured then
+        bootstrap_error = tostring(detail or "Neighbour Chat package verification failed.")
+    end
+else
+    bootstrap_error = "Neighbour Chat bootstrap is missing or damaged."
+end
+local client_ok, Client = false, nil
+if not bootstrap_error then
+    client_ok, Client = pcall(dofile, path .. "/client.lua")
+    if not client_ok or type(Client) ~= "table" then
+        bootstrap_error = "Neighbour Chat client.lua could not be loaded safely."
+    end
+end
+if not Client then
+    Client = {}
+    function Client.new()
+        return {
+            state={stage="error", error=bootstrap_error or "Neighbour Chat is unavailable."},
+            start=function() return nil, bootstrap_error end,
+            readState=function() return nil, bootstrap_error end,
+            action=function() return nil, bootstrap_error end,
+            stop=function() return nil, bootstrap_error end,
+        }
+    end
+end
 local shared = package.loaded["neighbourchat.session"]
 if not shared then
-    shared = {client=Client.new(path), draft="", full=false}
+    shared = {client=Client.new(path), draft="", full=false, background=nil}
     package.loaded["neighbourchat.session"] = shared
 end
 
@@ -38,6 +68,7 @@ local function list(value)
 end
 
 function Chat:init()
+    shared.background = self
     self.ui.menu:registerToMainMenu(self)
     Dispatcher:registerAction("neighbourchat_popup", {
         category="none", event="NeighbourChatPopup",
@@ -54,6 +85,8 @@ function Chat:addToMainMenu(items)
         text="Neighbour Chat", sorting_hint="more_tools", sub_item_table={
             {text="Open chat", callback=function() self:open(false) end},
             {text="Open full screen", callback=function() self:open(true) end},
+            {text="Start chat service", callback=function() self:startService() end},
+            {text="Disconnect", callback=function() self:disconnect() end},
             {text="End chat", callback=function() self:endChat() end},
             {text="Stop chat service", callback=function() self:stop() end},
         },
@@ -76,20 +109,34 @@ function Chat:message(text)
     end)
 end
 
+function Chat:notify(text)
+    local now = os.time()
+    if shared.last_notice_at and now - shared.last_notice_at < 10 then return end
+    shared.last_notice_at = now
+    safe_call(function()
+        UIManager:show(InfoMessage:new{text=tostring(text or "New chat message"), timeout=3})
+    end)
+end
+
 function Chat:closeMenu()
     if self.menu then
         local menu = self.menu
         self.menu = nil
+        self.closing_menu = true
         safe_call(function() UIManager:close(menu) end)
+        self.closing_menu = nil
     end
 end
 
-function Chat:hide()
-    self.generation = (self.generation or 0) + 1
-    if self.poll then
-        safe_call(function() UIManager:unschedule(self.poll) end)
-        self.poll = nil
+function Chat:cancelBackground()
+    if shared.background_poll then
+        safe_call(function() UIManager:unschedule(shared.background_poll) end)
+        shared.background_poll = nil
     end
+end
+
+function Chat:hide(keep_background)
+    self.generation = (self.generation or 0) + 1
     self:closeMenu()
     if self.dialog then
         local dialog = self.dialog
@@ -97,22 +144,41 @@ function Chat:hide()
         safe_call(function() UIManager:close(dialog) end)
     end
     if shared.owner == self then shared.owner = nil end
+    if keep_background == false then
+        self:cancelBackground()
+        shared.background = nil
+    else
+        shared.background = self
+        self:scheduleBackground(5)
+    end
 end
 
 function Chat:open(full)
     if shared.owner and shared.owner ~= self then shared.owner:hide() end
     self:hide()
+    self:cancelBackground()
     shared.owner = self
+    shared.background = self
     self.generation = (self.generation or 0) + 1
     shared.full = full == true
     self.failed_reads = 0
     self:render()
-    self.poll = function() self:tick() end
-    safe_call(function() UIManager:scheduleIn(0.1, self.poll) end)
+    self:scheduleBackground(0.1)
+end
+
+function Chat:scheduleBackground(delay)
+    if shared.background ~= self or shared.background_poll then return end
+    local callback
+    callback = function()
+        shared.background_poll = nil
+        self:tick()
+    end
+    shared.background_poll = callback
+    safe_call(function() UIManager:scheduleIn(delay, callback) end)
 end
 
 function Chat:tick()
-    if shared.owner ~= self then return end
+    if shared.background ~= self then return end
     local ok, err = true, nil
     if not shared.ready then
         ok, err = safe_call(function()
@@ -132,6 +198,33 @@ function Chat:tick()
             local state, read_error = client:readState()
             if state then
                 self.failed_reads = 0
+                if shared.teardown and not state.busy then
+                    if state.error and state.error ~= "" then
+                        shared.teardown = nil
+                        self:message("Chat shutdown failed: " .. tostring(state.error))
+                    else
+                        shared.teardown = nil
+                        shared.draft = ""
+                        shared.recipient = nil
+                        client.state = {stage="idle", notice=state.notice}
+                    end
+                end
+                local newest, author
+                for _, message in ipairs(list(state.messages)) do
+                    if type(message) == "table" then
+                        local id = tonumber(message.id or 0) or 0
+                        if not newest or id > newest then
+                            newest = id
+                            author = message.display_name
+                        end
+                    end
+                end
+                if newest and shared.last_message_id and newest > shared.last_message_id and not shared.owner then
+                    self:notify("New message" .. (author and (" from " .. tostring(author)) or ""))
+                end
+                if newest and (not shared.last_message_id or newest > shared.last_message_id) then
+                    shared.last_message_id = newest
+                end
             else
                 self.failed_reads = (self.failed_reads or 0) + 1
                 client.state.error = read_error
@@ -151,9 +244,7 @@ function Chat:tick()
         client.state = {stage="idle", error=err}
     end
     if shared.owner == self then self:render() end
-    if shared.owner == self and not self.dialog then
-        safe_call(function() UIManager:scheduleIn(shared.ready and 2 or 1, self.poll) end)
-    end
+    self:scheduleBackground(shared.ready and 5 or 2)
 end
 
 function Chat:render()
@@ -170,7 +261,8 @@ function Chat:render()
         end, enabled)
     end
     if s.error and s.error ~= "" then
-        title = "Chat error"
+        title = "Chat unavailable"
+        add("Start / retry service", function() self:startService() end)
         add("Retry", function() client.starting=nil; shared.ready=nil; self:render() end)
         add("Hide", function() self:hide() end)
     elseif not shared.ready or s.stage == "starting" then
@@ -194,19 +286,47 @@ function Chat:render()
         title = "Saved content locked"
         add("Unlock saved content", function() self:unlock() end)
         add("Hide", function() self:hide() end)
+    elseif s.busy then
+        title = shared.teardown and "Ending chat…" or "Working…"
+        add(shared.teardown and "Waiting for safe shutdown" or "Please wait…", function() end, false)
+        add("Hide", function() self:hide() end)
     elseif s.connected then
         title = (s.address == "This Kindle" and "HOST / ADMIN" or "Neighbour Chat")
+        add("Connected" .. (s.display and (" as " .. tostring(s.display)) or ""), function() end, false)
         add("Open messages", function() self:messages() end)
         add("People", function() self:people() end)
         if s.admin then add("Host tools", function() self:hostTools() end) end
+        add("Disconnect", function() self:disconnect() end)
         add("End chat", function() self:endChat() end)
         add("Hide", function() self:hide() end)
     else
         title = "Start or join a chat"
+        add("Service ready", function() end, false)
         add("Host on this Kindle", function() self:action{action="host"} end)
         add("Join by Wi-Fi address", function() self:join() end)
         add("Scan nearby chats", function() self:action{action="scan"} end)
         add("Hide", function() self:hide() end)
+    end
+
+    function Chat:startService()
+        shared.background = self
+        shared.ready = nil
+        client.starting = nil
+        self:open(shared.full == true)
+    end
+
+    function Chat:disconnect()
+        if not shared.ready then
+            self:message("Chat service is not running.")
+            return
+        end
+        self:confirm("Disconnect from this chat? The service and saved login state remain available.", "Disconnect", function()
+            if self:action{action="disconnect"} then
+                shared.draft = ""
+                shared.recipient = nil
+                self:render()
+            end
+        end)
     end
     local ok, menu = safe_call(function()
         return Menu:new{title=title, item_table=rows, width=Device.screen:getWidth()}
@@ -216,6 +336,12 @@ function Chat:render()
         return
     end
     self.menu = menu
+    menu.onCloseWidget = function()
+        if self.menu == menu then self.menu = nil end
+        if not self.closing_menu and shared.owner == self then
+            self:hide()
+        end
+    end
     safe_call(function() UIManager:show(menu) end)
 end
 
@@ -245,8 +371,16 @@ function Chat:fields(title, fields, done, submit)
     self.dialog = true
     local generation = self.generation
     local dialog
+    local function wipe()
+        if dialog and dialog.fields then
+            for _, field in ipairs(dialog.fields) do
+                if field and field.text then field.text = "" end
+            end
+        end
+    end
     local function close()
         if dialog then safe_call(function() UIManager:close(dialog) end) end
+        wipe()
         self.dialog = nil
     end
     local ok, value = safe_call(function()
@@ -265,6 +399,10 @@ function Chat:fields(title, fields, done, submit)
         return
     end
     dialog = value
+    dialog.onCloseWidget = function()
+        wipe()
+        self.dialog = nil
+    end
     safe_call(function() UIManager:show(dialog); dialog:onShowKeyboard() end)
 end
 
@@ -359,6 +497,12 @@ function Chat:showRows(title, rows)
     local ok, menu = safe_call(function() return Menu:new{title=title, item_table=rows, width=Device.screen:getWidth()} end)
     if ok and menu then
         self.menu = menu
+        menu.onCloseWidget = function()
+            if self.menu == menu then self.menu = nil end
+            if not self.closing_menu and shared.owner == self then
+                self:hide()
+            end
+        end
         safe_call(function() UIManager:show(menu) end)
     else
         self:message(ok and "Could not draw this screen safely." or menu)
@@ -404,18 +548,14 @@ function Chat:write()
         return
     end
     dialog = value
+    dialog.onCloseWidget = function() self.dialog = nil end
     safe_call(function() UIManager:show(dialog); dialog:onShowKeyboard() end)
 end
 
 function Chat:endChat()
     self:confirm("End this chat? The host stops hosting. Saved chats and backups remain.", "End chat", function()
-        local s = client.state or {}
-        local action = s.hosting and s.address == "This Kindle" and "stop-host" or "disconnect"
-        if self:action{action=action} then
-            shared.ready = nil
-            shared.draft = ""
-            shared.recipient = nil
-            client.state = {stage="idle"}
+        if self:action{action="end-chat"} then
+            shared.teardown = true
             self:render()
         end
     end)
@@ -433,6 +573,7 @@ function Chat:confirm(text, label, callback)
                 self.dialog = nil
             end,
         }
+        dialog.onCloseWidget = function() self.dialog = nil end
         self.dialog = dialog
         UIManager:show(dialog)
     end)
@@ -440,14 +581,37 @@ end
 
 function Chat:stop()
     self:confirm("Stop the background chat service? Saved data remains on the Kindle.", "Stop service", function()
-        local ok, err = safe_call(function() return client:stop() end)
-        if not ok or not err then
-            self:message(ok and "The service did not stop." or err)
+        local ok, result, err = pcall(function() return client:stop() end)
+        if not ok or not result then
+            self:message(ok and tostring(err or "The service did not stop.") or tostring(result))
             return
         end
-        shared.ready = nil
-        self:hide()
+        client.state.busy = true
+        local started = os.time()
+        local function wait_for_stop()
+            local call_ok, healthy, health_error = pcall(function() return client:health() end)
+            if not call_ok or not healthy then
+                shared.ready = nil
+                client.state = {stage="idle"}
+                self:hide(false)
+                return
+            end
+            if os.time() - started >= 6 then
+                client.state.busy = false
+                client.state.error = tostring(health_error or "Timed out waiting for the chat service to stop.")
+                self:message(client.state.error)
+                if shared.owner == self then self:render() end
+                return
+            end
+            safe_call(function() UIManager:scheduleIn(0.3, wait_for_stop) end)
+        end
+        safe_call(function() UIManager:scheduleIn(0.2, wait_for_stop) end)
     end)
+end
+
+function Chat:stopImmediately()
+    safe_call(function() client:stop() end)
+    self:hide(false)
 end
 
 function Chat:onSuspend()
@@ -460,6 +624,10 @@ end
 
 function Chat:onCloseDocument()
     self:hide()
+end
+
+function Chat:onExit()
+    self:stopImmediately()
 end
 
 return Chat

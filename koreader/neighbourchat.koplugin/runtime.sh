@@ -12,6 +12,20 @@ fi
 mkdir -p "$CHAT_DATA"
 chmod 700 "$CHAT_DATA"
 exec >> "$CHAT_LOG" 2>&1
+if [ ! -f "$CHAT_PLUGIN/payload.sha256" ]; then
+    echo "Chat package verification manifest is missing."
+    exit 1
+fi
+if command -v sha256sum >/dev/null 2>&1; then
+    (CDPATH= cd -- "$CHAT_PLUGIN" && sha256sum -c payload.sha256 >/dev/null) || {
+        echo "Chat package verification failed."
+        exit 1
+    }
+fi
+if [ ! -f "$CHAT_BINARY" ] || [ ! -f "$CHAT_PLUGIN/client.lua" ]; then
+    echo "Chat package is incomplete. Reopen KOReader to run repair."
+    exit 1
+fi
 if ! mkdir "$CHAT_LOCK" 2>/dev/null; then exit 0; fi
 trap 'rmdir "$CHAT_LOCK"' EXIT
 chmod +x "$CHAT_BINARY"

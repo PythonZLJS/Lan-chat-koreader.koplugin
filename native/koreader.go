@@ -680,14 +680,18 @@ func (p *ReaderBridge) execute(v ReaderAction) error {
 		return p.refresh()
 	case "disconnect":
 		if p.remote != nil {
-			_ = p.remote.call("POST", "/api/logout", map[string]bool{}, nil)
+			if err := p.remote.call("POST", "/api/logout", map[string]bool{}, nil); err != nil {
+				return fmt.Errorf("disconnect could not be completed: %w", err)
+			}
 		}
 		p.clear()
 		return nil
 	case "end-chat":
 		wasOwnHost := p.snapshot().Address == "This Kindle"
 		if p.remote != nil {
-			_ = p.remote.call("POST", "/api/logout", map[string]bool{}, nil)
+			if err := p.remote.call("POST", "/api/logout", map[string]bool{}, nil); err != nil {
+				return fmt.Errorf("end chat could not log out safely: %w", err)
+			}
 		}
 		if wasOwnHost {
 			a.stopHost()

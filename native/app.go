@@ -172,6 +172,24 @@ func (a *App) stopHost() {
 		_ = server.Shutdown(ctx)
 		_ = server.Close()
 	}
+	a.invalidateSessions()
+}
+func (a *App) invalidateSessions() {
+	a.sessionsMu.Lock()
+	sessions := make([]*WebSession, 0, len(a.sessions))
+	for key, session := range a.sessions {
+		delete(a.sessions, key)
+		sessions = append(sessions, session)
+	}
+	a.sessionsMu.Unlock()
+	for _, session := range sessions {
+		session.mu.Lock()
+		session.Authed.Store(false)
+		session.Remote = nil
+		session.Pending = nil
+		session.Expires = time.Time{}
+		session.mu.Unlock()
+	}
 }
 func (a *App) ownOrigin() string {
 	a.hostMu.Lock()
