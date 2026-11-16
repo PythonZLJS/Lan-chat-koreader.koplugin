@@ -1,7 +1,7 @@
 /* Kindle e-ink: readable type, generous tap targets and minimal ink coverage.
    Flow/table layout and ES5 only; no fixed overlays or animation. */
 *{-webkit-box-sizing:border-box;box-sizing:border-box}
-html{font-size:20px;-webkit-text-size-adjust:100%;background:#fff}
+html{font-size:18px;-webkit-text-size-adjust:100%;background:#fff}
 body{margin:0;background:#fff;color:#000;font:100%/1.4 Arial,Helvetica,sans-serif}
 a{color:#000;text-decoration:underline;word-wrap:break-word}
 .header{display:table;table-layout:fixed;width:100%;padding:.25em .6em;border-bottom:2px solid #000}
@@ -13,13 +13,13 @@ h1{font:bold 1.4em/1.15 Arial,sans-serif;margin:.3em 0 .5em}h2{font:bold 1.08em/
 .status-line{border-bottom:2px solid #000;padding:.4em 0 .65em}.status-line .hint{margin-left:.5em}.status{display:inline-block;border:2px solid #000;padding:.15em .4em;font-size:.85em;font-weight:bold}.status-on{border-width:3px}
 .home-primary{padding:.75em 0 .6em}.home-secondary{border-top:2px solid #000;padding:.75em 0 .6em}.home-primary p,.home-secondary p{margin-bottom:.4em}.recent,.home-settings{border-top:2px solid #000;padding:.65em 0}.recent h2{font-size:1em}
 button,.button,input,select,textarea{font:inherit;color:#000;max-width:100%}
-button,.button{display:inline-block;vertical-align:middle;min-height:48px;padding:.45em .6em;margin:.2em .2em .2em 0;border:2px solid #000;background:#fff;font-weight:bold;line-height:1.25;text-align:center;text-decoration:none;white-space:normal;word-wrap:break-word;cursor:pointer}
+button,.button{display:inline-block;vertical-align:middle;min-height:44px;padding:.35em .55em;margin:.15em .15em .15em 0;border:2px solid #000;background:#fff;font-weight:bold;line-height:1.2;text-align:center;text-decoration:none;white-space:normal;word-wrap:break-word;cursor:pointer}
 .primary{border-width:3px}.tabs .selected{border-bottom:5px solid #000;text-decoration:underline}.display-options .active{background:#000;color:#fff}.quiet{border-width:1px}.wide{display:block;width:100%;margin-right:0}
 button:focus,a:focus,input:focus,select:focus,textarea:focus{outline:3px solid #000;outline-offset:2px}
 .tabs{display:table;table-layout:fixed;width:100%;border-collapse:collapse;margin:0;border-bottom:2px solid #000}.tabs a{display:table-cell;height:48px;padding:.5em .2em;border:1px solid #000;text-align:center;text-decoration:none;font-size:.9em;font-weight:bold;word-wrap:break-word}
 .secondary{display:block;margin:.6em 0;border:0}.secondary a{display:inline-block;vertical-align:top;width:48%;height:auto;min-height:48px;margin:.2em .5%;padding:.5em .25em;font-size:.95em}.secondary a:last-child{width:99%}
 .context{font-size:.8em;margin:0 0 .4em;padding:.3em 0;border-bottom:1px solid #000;word-wrap:break-word}.connection-address{display:inline-block;margin-left:.6em;font-family:monospace;font-size:.9em;word-break:break-all}.hint{font-size:.85em;color:#000}.card{border:1px solid #000;padding:.65em;margin:.65em 0;background:#fff}.card p:last-child{margin-bottom:0}
-label{display:block;margin:.6em 0 .3em;font-size:.95em;font-weight:bold}input,select,textarea{display:block;width:100%;min-width:0;min-height:48px;margin:0 0 .55em;padding:.45em;border:2px solid #000;background:#fff}input[type=hidden]{display:none}input[type=file]{padding:.3em;font-size:.9em}textarea{min-height:4em;line-height:1.4;resize:vertical}
+label{display:block;margin:.45em 0 .25em;font-size:.95em;font-weight:bold}input,select,textarea{display:block;width:100%;min-width:0;min-height:44px;margin:0 0 .45em;padding:.35em;border:2px solid #000;background:#fff}input[type=hidden]{display:none}input[type=file]{padding:.25em;font-size:.9em}textarea{min-height:4em;line-height:1.35;resize:vertical}
 .password-row{display:table;table-layout:fixed;width:100%;margin-bottom:.6em}.password-input,.password-control{display:table-cell;vertical-align:top}.password-control{width:4em;padding-left:.3em}.password-row input{margin:0}.password-toggle{width:100%;min-height:48px;margin:0;padding:.45em .1em}
 .check{font-weight:normal;padding:.5em 0;min-height:48px}.check input{display:inline-block;vertical-align:middle;width:1.4em;height:1.4em;min-height:0;margin:0 .4em .15em 0;padding:0}
 .address,.fingerprint{font-family:monospace;word-wrap:break-word;word-break:break-all}.address{font-size:.9em}.fingerprint{font-size:.8em}.join-code,.check-code{padding:.6em;border:2px solid #000;text-align:center;font:bold 1.1em/1.4 monospace;word-break:break-all}
@@ -35,6 +35,6 @@ footer{margin-top:.8em;padding-top:.5em;border-top:2px solid #000}footer p{font-
 .display-toggle{display:none}.js .display-toggle{display:inline-block}.display-options{display:none;border-bottom:2px solid #000}.display-options.is-open{display:block}.display-options h2{font-size:1em}.display-options p{font-size:.9em}.display-options .button{font-size:.9em}
 body.compact .card{padding:.5em;margin:.4em 0}body.compact .message{padding:.4em 0}body.compact main{padding-top:.4em}
 @media screen and (max-width:420px){html{font-size:18px}.header{padding:.3em .4em}.header-links{width:7em}.brand-title{font-size:.9em}main,.display-options{padding:.5em}.page-actions h1{font-size:1.25em}.action-links{width:5.5em}.card{padding:.5em}.status-line .hint{display:block;margin:.3em 0 0}.tabs{display:block}.tabs a{display:inline-block;width:50%;height:auto;min-height:48px;font-size:.9em;vertical-align:top}.secondary a{width:48%;font-size:.95em}.secondary a:last-child{width:99%}.connection-address{display:block;margin-left:0}}
-@media screen and (min-width:600px){html{font-size:24px}button,.button,input,select,textarea,.password-toggle,.check,.file-item a{min-height:64px}.tabs a,.reading-tools .button,.compose-title .compose-close{height:64px}.secondary a{min-height:64px;height:auto}}
-@media screen and (min-width:900px){html{font-size:30px}button,.button,input,select,textarea,.password-toggle,.check,.file-item a{min-height:72px}.tabs a,.reading-tools .button,.compose-title .compose-close{height:72px}.secondary a{min-height:72px;height:auto}}
-@media screen and (min-width:1200px){html{font-size:34px}}
+@media screen and (min-width:600px){html{font-size:20px}button,.button,input,select,textarea,.password-toggle,.check,.file-item a{min-height:48px}.tabs a,.reading-tools .button,.compose-title .compose-close{height:48px}.secondary a{min-height:48px;height:auto}}
+@media screen and (min-width:900px){html{font-size:22px}button,.button,input,select,textarea,.password-toggle,.check,.file-item a{min-height:52px}.tabs a,.reading-tools .button,.compose-title .compose-close{height:52px}.secondary a{min-height:52px;height:auto}}
+@media screen and (min-width:1200px){html{font-size:24px}}

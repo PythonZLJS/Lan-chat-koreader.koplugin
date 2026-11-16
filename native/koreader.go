@@ -183,7 +183,7 @@ func (p *ReaderBridge) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch action.Action {
-	case "scan", "join-nearby", "discovery-on", "discovery-off", "host", "setup", "probe", "confirm", "login", "register", "refresh", "older", "latest", "send", "disconnect", "stop-host", "invite", "admin", "approve", "deny", "unlock", "lock", "files", "upload", "download", "reconnect", "forget", "people", "create-room", "delete-room", "move-user", "kick", "ban", "unban", "inbox", "search":
+	case "scan", "join-nearby", "discovery-on", "discovery-off", "host", "setup", "probe", "confirm", "login", "register", "refresh", "older", "latest", "send", "disconnect", "end-chat", "stop-host", "invite", "admin", "approve", "deny", "unlock", "lock", "files", "upload", "download", "reconnect", "forget", "people", "create-room", "delete-room", "move-user", "kick", "ban", "unban", "inbox", "search":
 	default:
 		apiError(w, 400, "Unknown chat action.")
 		return
@@ -657,6 +657,19 @@ func (p *ReaderBridge) execute(v ReaderAction) error {
 			_ = p.remote.call("POST", "/api/logout", map[string]bool{}, nil)
 		}
 		p.clear()
+		return nil
+	case "end-chat":
+		wasOwnHost := p.snapshot().Address == "This Kindle"
+		if p.remote != nil {
+			_ = p.remote.call("POST", "/api/logout", map[string]bool{}, nil)
+		}
+		if wasOwnHost {
+			a.stopHost()
+		}
+		p.clear()
+		p.change(func(s *ReaderState) {
+			s.Notice = "Chat ended. Saved messages and backups were kept."
+		})
 		return nil
 	case "stop-host":
 		a.stopHost()

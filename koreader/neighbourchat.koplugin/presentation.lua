@@ -49,7 +49,7 @@ function M.build(s,options)
         model.tools={
             {action("Write message","write",nil,ready and s.connected),action("To: "..recipient.label,"recipient",nil,ready and s.connected)},
             {action("Older messages","older",s.before,ready and s.connected and s.more),action("Latest messages","latest",nil,ready and s.connected)},
-            {action("Search","search",nil,ready and s.connected),action("Files","files",nil,ready and s.connected),action("Pop-up","popup")},
+            {action("Search","search",nil,ready and s.connected),action("Files","files",nil,ready and s.connected),action("End chat","end-chat",nil,ready and s.connected)},
         }
     elseif screen=="connect" then
         model.title="Neighbour Chat"
@@ -130,7 +130,7 @@ function M.build(s,options)
         else
             model.rows[#model.rows+1]=card("Host a chat","Start a server here and become its admin.","host",nil,ready)
         end
-        model.tools={{action("Refresh","admin",nil,ready and s.connected and s.admin),action("Stop hosting","stop-host",nil,ready and s.hosting),action("Stop all","stop")}}
+        model.tools={{action("Refresh","admin",nil,ready and s.connected and s.admin),action("End chat","end-chat",nil,ready and s.connected),action("Stop hosting","stop-host",nil,ready and s.hosting)}}
     elseif screen=="inbox" then
         model.title="Host inbox";model.kind="messages";model.description="Private messages addressed to the host"
         model.text=M.messages(s.inbox,s,"No messages in the host inbox.")

@@ -60,6 +60,7 @@ function Chat:addToMainMenu(items)
     items.neighbourchat={text="Neighbour Chat",sorting_hint="more_tools",sub_item_table={
         {text="Reading popup",callback=function() open(false) end},
         {text="Full screen",callback=function() open(true) end},
+        {text="End chat",callback=function() self:endChat() end},
         {text="Disconnect from chat",callback=function() self:action{action="disconnect"} end},
         {text="Stop chat completely",callback=function() self:stop() end},
     }}
@@ -170,6 +171,7 @@ function Chat:dispatch(id,value)
     end)
     elseif id=="inbox" then shared.screen="inbox";self:action{action="inbox"}
     elseif id=="disconnect" then shared.screen="connect";self.connect_home=true;shared.recipient=nil;self:action{action=id}
+    elseif id=="end-chat" then self:endChat()
     elseif id=="stop-host" then self:confirm("Stop hosting on this Kindle? Everyone connected here will be disconnected.",function()self:action{action=id}end,"Stop hosting")
     elseif self[id] then self[id](self)
     else self:action{action=id} end
@@ -236,7 +238,7 @@ function Chat:action(value)
     if not shared.ready then self:message("Open the chat window first.");return false end
     local ok,err=client:action(value)
     if not ok then self:message(err);return false end
-    if value.action=="disconnect" then shared.draft="";shared.send_token=nil end
+    if value.action=="disconnect" or value.action=="end-chat" then shared.draft="";shared.send_token=nil;shared.recipient=nil end
     client.state.busy=true;client.state.error="";client.state.notice=""
     if self.view then self:render(true) end
     return true
@@ -376,6 +378,24 @@ function Chat:requests()
         if #rows==0 then self:message("No account requests waiting.");return end
         dialog=ButtonDialog:new{title="Account requests",buttons=rows};UIManager:show(dialog)
     end)
+end
+function Chat:endChat()
+    self:confirm("End this chat? You will be disconnected, and hosting will stop if this Kindle is the host. Saved messages and backups are kept.",
+        function()
+            -- Keep the release plugin compatible with older bundled services:
+            -- ending a hosted chat is the existing stop-host operation; a
+            -- participant only needs the existing disconnect operation.
+            local action = client.state.hosting and client.state.address == "This Kindle" and "stop-host" or "disconnect"
+            if self:action{action=action} then
+                shared.ready=nil
+                shared.draft=""
+                shared.send_token=nil
+                shared.recipient=nil
+                shared.screen="connect"
+                shared.context_key=nil
+                self.connect_home=true
+            end
+        end,"End chat")
 end
 function Chat:stop()
     UIManager:show(ConfirmBox:new{text="Disconnect, stop hosting and stop the background chat service? Saved chats and backups are kept.",

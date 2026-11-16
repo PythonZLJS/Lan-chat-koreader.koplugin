@@ -129,6 +129,25 @@ func TestReaderPersistentConnectionPrivateMessagesFilesAndDisconnect(t *testing.
 	}
 }
 
+func TestReaderEndChatStopsOwnHostAndKeepsSavedData(t *testing.T) {
+	a, server := testReader(t)
+	s := readerAction(t, a, server, ReaderAction{Action: "host"})
+	if s.Error != "" || !s.Hosting {
+		t.Fatalf("host: %+v", s)
+	}
+	s = readerAction(t, a, server, ReaderAction{Action: "login", Username: "admin", Password: testPassword})
+	if s.Error != "" || !s.Connected || !s.Admin {
+		t.Fatalf("login: %+v", s)
+	}
+	s = readerAction(t, a, server, ReaderAction{Action: "end-chat"})
+	if s.Error != "" || s.Hosting || s.Connected {
+		t.Fatalf("end chat did not clean up: %+v", s)
+	}
+	if _, err := os.Stat(filepath.Join(a.Store.Data, "chat.sqlite3")); err != nil {
+		t.Fatalf("saved chat data was removed: %v", err)
+	}
+}
+
 func TestReaderAuthenticationAndNonBlockingControl(t *testing.T) {
 	a, server := testReader(t)
 	response, err := server.Client().Get(server.URL + "/_reader/state")
