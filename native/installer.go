@@ -59,7 +59,12 @@ func installBundle(source, root, registry, target string) error {
 	if e != nil {
 		return e
 	}
-	defer release()
+	released := false
+	defer func() {
+		if !released {
+			release()
+		}
+	}()
 	if info, e := os.Lstat(root); e == nil && info.Mode()&os.ModeSymlink != 0 {
 		return errors.New("the application directory must not be a symlink")
 	}
@@ -91,15 +96,19 @@ func installBundle(source, root, registry, target string) error {
 	if e = closeOwnMesquite(); e != nil {
 		return e
 	}
-	upgradeBackups, e := backupSection(root, "Upgrades")
+	upgradeBackups, e := os.MkdirTemp(filepath.Dir(root), ".neighbourchat-upgrade-*")
 	if e != nil {
 		return e
 	}
+	_ = os.Chmod(upgradeBackups, 0700)
+	defer os.RemoveAll(upgradeBackups)
 	previous := filepath.Join(upgradeBackups, time.Now().Format("20060102-150405")+"-"+randomToken(6))
 	hadPrevious := false
 	dataMoved := false
 	complete := false
 	if _, e = os.Stat(root); e == nil {
+		release()
+		released = true
 		if e = os.Rename(root, previous); e != nil {
 			return e
 		}
@@ -217,19 +226,11 @@ func removeInstalledFiles(root string) error {
 	if info, e := os.Lstat(root); e != nil || info.Mode()&os.ModeSymlink != 0 {
 		return errors.New("refusing to remove a linked installation")
 	}
-	uninstalled, e := backupSection(root, "Uninstalled")
-	if e != nil {
-		return e
-	}
-	backup := filepath.Join(uninstalled, time.Now().Format("20060102-150405")+"-"+randomToken(8))
 	if info, err := os.Lstat(filepath.Join(root, "data")); err == nil {
 		if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-			return errors.New("refusing to move linked or non-directory chat data")
+			return errors.New("refusing to remove linked or non-directory chat data")
 		}
-		if e = os.Rename(filepath.Join(root, "data"), backup); e != nil {
-			return e
-		}
-		fmt.Println("Your chat data was kept in: " + backup)
+		fmt.Println("Your chat data was kept in: " + filepath.Join(root, "data"))
 	} else if !os.IsNotExist(err) {
 		return err
 	}
@@ -242,8 +243,17 @@ func removeInstalledFiles(root string) error {
 	if e = os.RemoveAll(filepath.Join(documents, "NeighbourChat")); e != nil {
 		return e
 	}
-	if e = os.RemoveAll(root); e != nil {
-		return e
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if entry.Name() == "data" {
+			continue
+		}
+		if err = os.RemoveAll(filepath.Join(root, entry.Name())); err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -2,7 +2,8 @@ NEIGHBOUR CHAT 7.1 - KOREADER PLUGIN
 
 INSTALL - DRAG ONE FOLDER
 1. Stop an older chat service, exit KOReader and connect USB. On upgrade,
-   keep PC copies of lan_chat/data and NeighbourChat-Backups if present.
+   keep a PC copy of the old lan_chat/data and NeighbourChat-Backups if present;
+   the rebuilt plugin migrates recognised legacy data into its own data folder.
    Restart Kindle once if the older chat service is still running.
 2. Extract NeighbourChat-KOReader.zip. Copy the WHOLE neighbourchat.koplugin
    folder into your existing KOReader plugins folder, replacing that plugin
@@ -131,23 +132,25 @@ Chat -> To: Room / a person -> Write message -> Send.
 People -> choose a person opens a private message directly.
 Chat -> Files lists files available to you. Share a file opens the
 native file chooser; long-press a file, choose it, then select recipients.
-Downloads use unique names in Internal Storage/NeighbourChat-Downloads and
+Downloads use unique names under the plugin's private data/downloads folder and
 do not overwrite existing files. Downloaded copies are ordinary files outside
 saved-content encryption. The host's file limits and permissions still apply.
 
 DATA / BACKUPS
-Live messages, accounts and uploaded files: Internal Storage/lan_chat/data
-All managed backups: Internal Storage/NeighbourChat-Backups
-One diagnostic log: Internal Storage/NeighbourChat.log
+All live data, uploads, downloads, tokens, certificates, tickets, locks and logs:
+plugins/neighbourchat.koplugin/data
+Managed backups: plugins/neighbourchat.koplugin/data/backups
+Diagnostic log: plugins/neighbourchat.koplugin/data/NeighbourChat.log
 Existing v4.x data, password hashes, HTTPS identity and optional saved-content
 encryption are reused. If encrypted content is locked, choose Home -> Host a chat -> Unlock.
-Copy both live data and the complete backup folder for a PC safety copy.
+Copy the complete plugin data folder for a PC safety copy.
 An old controller on the same port is not killed blindly: stop it/restart the
 Kindle before using the plugin. The plugin starts its own bundled service.
 
 REMOVE
-Choose Home -> Stop, exit KOReader, connect USB and delete
-only plugins/neighbourchat.koplugin. Chat data, backups and the log remain.
+Choose Home -> Stop, exit KOReader, connect USB and delete only
+plugins/neighbourchat.koplugin. Chat data is intentionally removed with the
+plugin folder; copy data elsewhere first if it must be retained.
 
 VERIFICATION
 Go regression tests cover HTTPS/pinning, the authenticated loopback bridge,

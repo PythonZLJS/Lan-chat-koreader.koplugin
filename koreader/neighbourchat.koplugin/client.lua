@@ -9,7 +9,8 @@ end
 -- No global LuaSocket timeout changes, proxies or external HTTP in KOReader.
 -- A single loopback request has both a bounded size and an absolute deadline.
 local function transport(method, path, body, token, etag)
-    local socket = require("socket")
+    local ok_socket, socket = pcall(require, "socket")
+    if not ok_socket or not socket then return nil, "Local networking is unavailable." end
     local tcp, err = socket.tcp()
     if not tcp then return nil, err end
     local deadline = socket.gettime() + 0.7
@@ -61,11 +62,12 @@ end
 function Client.new(plugin_dir, options)
     options = options or {}
     return setmetatable({path=plugin_dir, request=options.transport or transport,
-        token_file=options.token_file or "/mnt/us/lan_chat/data/koreader-token.txt",
+        token_file=options.token_file or plugin_dir .. "/data/koreader-token.txt",
         launch=options.launch, clock=options.clock or os.time, state={stage="idle"}}, Client)
 end
 
 function Client:call(method, path, data, public)
+    if type(method) ~= "string" or type(path) ~= "string" then return nil, "Invalid local action." end
     if path ~= "/_health" and path ~= "/_reader/state" and path ~= "/_reader/action" then return nil,"Invalid local action." end
     if not public and not self.token then
         local file = io.open(self.token_file, "rb")
@@ -73,7 +75,17 @@ function Client:call(method, path, data, public)
         if self.token then self.token=self.token:match("^%s*([A-Za-z0-9_-]+)%s*$") end
         if not self.token or #self.token ~= 43 then self.token=nil;return nil,"Chat is still starting." end
     end
-    local ok, code, body, etag = pcall(self.request, method, path, data and json.encode(data), public and nil or self.token,
+    local encoded, encode_error
+    if data ~= nil then
+        local encoded_ok, value = pcall(json.encode, data)
+        if not encoded_ok or type(value) ~= "string" then
+            encode_error = "Could not encode the local chat action."
+        else
+            encoded = value
+        end
+    end
+    if encode_error then return nil, encode_error end
+    local ok, code, body, etag = pcall(self.request, method, path, encoded, public and nil or self.token,
         path=="/_reader/state" and self.etag or nil)
     if not ok or not code then return nil, body or "The local chat service is not responding." end
     if code==304 and path=="/_reader/state" then return self.state end
@@ -106,18 +118,20 @@ function Client:start()
         end
     elseif self.clock()>self.starting then
         self.starting=nil
-        return nil,"Chat could not start. Check NeighbourChat.log or restart the Kindle."
+        return nil,"Chat could not start. Check data/NeighbourChat.log or restart the Kindle."
     end
     return false,"Starting chat..."
 end
 
 function Client:readState()
     local state, err = self:call("GET","/_reader/state")
-    if state then self.state=state end
+    if state and type(state) == "table" then self.state=state
+    elseif state then return nil, "The local chat returned invalid state." end
     return state,err
 end
 
 function Client:action(action)
+    if type(action) ~= "table" or type(action.action) ~= "string" then return nil, "Invalid chat action." end
     if action.context==nil then action.context=self.state.context end
     return self:call("POST","/_reader/action",action)
 end

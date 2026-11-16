@@ -194,11 +194,13 @@ func TestClickInstallerUpgradeAndFullRemovalKeepDataAndOtherApps(t *testing.T) {
 	if e = removeInstalledFiles(root); e != nil {
 		t.Fatal(e)
 	}
-	if _, e = os.Stat(root); !os.IsNotExist(e) {
+	if _, e = os.Stat(filepath.Join(root, "data")); e != nil {
+		t.Fatal("plugin data was removed")
+	}
+	if _, e = os.Stat(filepath.Join(root, "installation.json")); !os.IsNotExist(e) {
 		t.Fatal("app files remain")
 	}
-	backups, _ := filepath.Glob(filepath.Join(parent, "NeighbourChat-Backups", "Uninstalled", "*", "keep.txt"))
-	if len(backups) != 1 || readText(backups[0]) != "preserve" {
+	if readText(filepath.Join(root, "data", "keep.txt")) != "preserve" {
 		t.Fatal("uninstall lost data")
 	}
 	if readText(book) != "book" {

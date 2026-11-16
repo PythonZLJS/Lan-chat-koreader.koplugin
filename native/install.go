@@ -37,8 +37,8 @@ func prepare(root, target, registry string) error {
 	if e != nil {
 		return e
 	}
-	data := filepath.Join(root, "data")
-	if e = os.MkdirAll(data, 0700); e != nil {
+	data, e := ensureDataRoot(root)
+	if e != nil {
 		return e
 	}
 	if _, e = os.Stat(registry); e != nil {

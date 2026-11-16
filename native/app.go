@@ -583,7 +583,7 @@ func (a *App) controls(w http.ResponseWriter, r *http.Request, s *WebSession) {
 				break
 			}
 			if e := a.scheduleUninstall(); e != nil {
-				p.Error = "Could not start uninstalling. Check NeighbourChat.log in Internal Storage and try again."
+				p.Error = "Could not start uninstalling. Check data/NeighbourChat.log and try again."
 				break
 			}
 			p.View = "uninstalling"

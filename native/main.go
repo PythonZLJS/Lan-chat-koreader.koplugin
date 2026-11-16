@@ -35,12 +35,12 @@ func run(args []string) error {
 		return nil
 	}
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
-	root := flags.String("root", "/mnt/us/lan_chat", "app folder")
+	root := flags.String("root", "/mnt/us/koreader/plugins/neighbourchat.koplugin", "KOReader plugin folder")
 	port := flags.String("local-port", "8001", "local controller port")
 	screen := flags.String("screen", "home", "home or uninstall")
 	delay := flags.Int("delay", 0, "uninstall delay in seconds")
 	source := flags.String("source", "", "extracted installer package")
-	removeFiles := flags.Bool("remove-files", false, "remove app files while preserving data in NeighbourChat-Backups")
+	removeFiles := flags.Bool("remove-files", false, "remove app files while preserving its plugin-local data")
 	if e := flags.Parse(args[1:]); e != nil {
 		return e
 	}

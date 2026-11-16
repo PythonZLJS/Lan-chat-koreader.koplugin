@@ -7,9 +7,8 @@ import (
 	"path/filepath"
 )
 
-// Outside the app directory so uninstall failures remain visible over USB.
 func diagnosticLogPath(root string) string {
-	return filepath.Join(filepath.Dir(root), "NeighbourChat.log")
+	return filepath.Join(root, "data", "NeighbourChat.log")
 }
 
 func consolidateLegacyLogs(previous, root string) error {

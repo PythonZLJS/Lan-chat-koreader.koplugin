@@ -115,7 +115,7 @@ func TestReaderPersistentConnectionPrivateMessagesFilesAndDisconnect(t *testing.
 	if s.Error != "" {
 		t.Fatal(s.Error)
 	}
-	downloads, _ := filepath.Glob(filepath.Join(filepath.Dir(a.Store.Root), "NeighbourChat-Downloads", "*"))
+	downloads, _ := filepath.Glob(filepath.Join(a.Store.Data, "downloads", "*"))
 	if len(downloads) != 1 || readText(downloads[0]) != "file from reader" {
 		t.Fatal("download failed")
 	}

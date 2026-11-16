@@ -1,15 +1,22 @@
 #!/bin/sh
 set -eu
 umask 077
-exec >> /mnt/us/NeighbourChat.log 2>&1
 CHAT_PLUGIN=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 CHAT_BINARY="$CHAT_PLUGIN/bin/neighbour-chat"
-CHAT_LOCK=/tmp/neighbour-chat-reader-start.lock
+CHAT_DATA="$CHAT_PLUGIN/data"
+CHAT_LOG="$CHAT_DATA/NeighbourChat.log"
+CHAT_LOCK="$CHAT_DATA/.reader-start.lock"
+if [ -L "$CHAT_DATA" ] || [ -L "$CHAT_BINARY" ] || [ -L "$CHAT_LOG" ]; then
+    exit 1
+fi
+mkdir -p "$CHAT_DATA"
+chmod 700 "$CHAT_DATA"
+exec >> "$CHAT_LOG" 2>&1
 if ! mkdir "$CHAT_LOCK" 2>/dev/null; then exit 0; fi
 trap 'rmdir "$CHAT_LOCK"' EXIT
 chmod +x "$CHAT_BINARY"
 if "$CHAT_BINARY" health >/dev/null 2>&1; then exit 0; fi
-nohup "$CHAT_BINARY" serve --root /mnt/us/lan_chat < /dev/null &
+nohup "$CHAT_BINARY" serve --root "$CHAT_PLUGIN" < /dev/null &
 CHAT_TRIES=0
 while ! "$CHAT_BINARY" health >/dev/null 2>&1; do
     CHAT_TRIES=$((CHAT_TRIES + 1))

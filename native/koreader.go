@@ -85,6 +85,7 @@ type ReaderBridge struct {
 	ctx          context.Context
 	cancel       context.CancelFunc
 	done         chan struct{}
+	closeOnce    sync.Once
 	remote       *Remote // worker-owned; state never exposes cookies or credentials
 	pending      *PendingHost
 	before       int64
@@ -115,7 +116,10 @@ func newReaderBridge(a *App) (*ReaderBridge, error) {
 	go p.loop()
 	return p, nil
 }
-func (p *ReaderBridge) close() { p.cancel(); <-p.done }
+func (p *ReaderBridge) close() {
+	p.closeOnce.Do(func() { p.cancel() })
+	<-p.done
+}
 func (p *ReaderBridge) change(fn func(*ReaderState)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -125,6 +129,17 @@ func (p *ReaderBridge) change(fn func(*ReaderState)) {
 func (p *ReaderBridge) snapshot() ReaderState {
 	p.mu.Lock()
 	s := p.state
+	s.Nearby = append([]NearbyHost(nil), p.state.Nearby...)
+	s.Messages = append([]Message(nil), p.state.Messages...)
+	s.Users = append([]User(nil), p.state.Users...)
+	s.Files = append([]FileInfo(nil), p.state.Files...)
+	s.Pending = append([]User(nil), p.state.Pending...)
+	s.Accounts = append([]User(nil), p.state.Accounts...)
+	s.Inbox = append([]Message(nil), p.state.Inbox...)
+	s.Results = append([]Message(nil), p.state.Results...)
+	s.Addresses = append([]string(nil), p.state.Addresses...)
+	s.Rooms = append([]string(nil), p.state.Rooms...)
+	s.Recent = append([]string(nil), p.state.Recent...)
 	p.mu.Unlock()
 	s.Hosting = p.app.hosting()
 	s.Discoverable, s.DiscoveryName = p.app.discoveryStatus()
@@ -222,7 +237,10 @@ func (p *ReaderBridge) loop() {
 		case <-p.ctx.Done():
 			return
 		case job := <-p.jobs:
-			err := p.execute(job)
+			if p.ctx.Err() != nil {
+				return
+			}
+			err := p.safeExecute(job)
 			p.change(func(s *ReaderState) {
 				s.Busy = false
 				if err != nil {
@@ -251,6 +269,14 @@ func (p *ReaderBridge) loop() {
 			}
 		}
 	}
+}
+func (p *ReaderBridge) safeExecute(job ReaderAction) (err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = fmt.Errorf("chat operation failed safely")
+		}
+	}()
+	return p.execute(job)
 }
 func (p *ReaderBridge) pollInterval() time.Duration {
 	p.mu.Lock()
@@ -868,8 +894,8 @@ func (p *ReaderBridge) execute(v ReaderAction) error {
 		if response.StatusCode != 200 {
 			return errors.New("The file is no longer available to this account.")
 		}
-		folder := filepath.Join(filepath.Dir(a.Store.Root), "NeighbourChat-Downloads")
-		if err = privateBackupDirectory(folder); err != nil {
+		folder := filepath.Join(a.Store.Data, "downloads")
+		if err = privateDirectory(folder); err != nil {
 			return err
 		}
 		name := strings.Map(func(r rune) rune {
@@ -908,7 +934,7 @@ func (p *ReaderBridge) execute(v ReaderAction) error {
 			return err
 		}
 		complete = true
-		p.change(func(s *ReaderState) { s.Notice = "Saved to NeighbourChat-Downloads/" + filepath.Base(target) })
+		p.change(func(s *ReaderState) { s.Notice = "Saved to data/downloads/" + filepath.Base(target) })
 		return nil
 	}
 	return errors.New("Unknown chat operation.")

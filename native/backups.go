@@ -13,9 +13,8 @@ import (
 var backupMu sync.Mutex
 var validBackupID = regexp.MustCompile(`^[A-Za-z0-9_-]{22}$`)
 
-// Backups live beside the application so uninstalling never removes them.
 func backupRoot(root string) string {
-	return filepath.Join(filepath.Dir(root), "NeighbourChat-Backups")
+	return filepath.Join(root, "data", "backups")
 }
 
 func privateBackupDirectory(path string) error {
@@ -35,6 +34,9 @@ func privateBackupDirectory(path string) error {
 // Caller holds backupMu. Only recognise names and contents produced by this app.
 func prepareBackupRoot(root string) (string, error) {
 	base := backupRoot(root)
+	if err := privateDirectory(filepath.Dir(base)); err != nil {
+		return "", err
+	}
 	if err := privateBackupDirectory(base); err != nil {
 		return "", err
 	}

@@ -40,7 +40,8 @@ encryption still protects stored chat/file contents with XChaCha20-Poly1305;
 metadata remains visible. Unlocked hosts can read messages: this is not
 end-to-end encryption. Physical/USB access can expose local files and keys.
 
-Backups remain in NeighbourChat-Backups, including preserved legacy snapshots.
+Backups remain in the plugin's private data/backups folder, including
+preserved legacy snapshots migrated from older sibling locations.
 Automatic migration copies keep their installation ID/encryption association.
 Historical uninstall/PC backups are not retroactively encrypted by another
 installation. Removing the plugin preserves live data, backups and the log.

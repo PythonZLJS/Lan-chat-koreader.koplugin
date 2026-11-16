@@ -21,8 +21,9 @@ separate controls. Existing chats and the central backups folder are retained.
 
 Source: native/ (service), koreader/neighbourchat.koplugin/ (native Lua UI),
 koreader/tests/ and tools/build-koreader.py. See VERIFICATION.txt for test scope.
-The service retains the web/API and old-data compatibility code needed for
-existing LAN clients and data; it does not register or launch a Mesquite app.
+The service retains the API and old-data compatibility code needed for existing
+LAN clients and data. The KOReader runtime stores all new data below
+neighbourchat.koplugin/data and does not register or launch a Mesquite app.
 
 Compilation caches, old release archives, old launchers/installers and downloaded
 PC toolchains are removed from this finished workspace. Build instructions list

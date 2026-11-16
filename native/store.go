@@ -53,7 +53,14 @@ func openStore(root string) (*Store, error) {
 	if e != nil {
 		return nil, e
 	}
-	s := &Store{Root: absolute, Data: filepath.Join(absolute, "data")}
+	data, e := ensureDataRoot(absolute)
+	if e != nil {
+		return nil, e
+	}
+	if e = migrateLegacyStorage(absolute, data); e != nil {
+		return nil, e
+	}
+	s := &Store{Root: absolute, Data: data}
 	if e = os.MkdirAll(filepath.Join(s.Data, "uploads"), 0700); e != nil {
 		return nil, e
 	}

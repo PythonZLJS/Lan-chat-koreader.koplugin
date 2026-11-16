@@ -10,8 +10,12 @@ import (
 )
 
 func lockMaintenance(root string) (func(), error) {
+	data, err := ensureDataRoot(root)
+	if err != nil {
+		return nil, err
+	}
 	sum := sha256.Sum256([]byte(root))
-	path := filepath.Join(os.TempDir(), fmt.Sprintf("neighbour-chat-maintenance-%x.lock", sum[:8]))
+	path := filepath.Join(data, fmt.Sprintf(".maintenance-%x.lock", sum[:8]))
 	file, e := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_RDWR, 0600)
 	if e != nil {
 		return nil, e

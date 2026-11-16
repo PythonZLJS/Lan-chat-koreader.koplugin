@@ -102,6 +102,9 @@ func TestBackupCollisionsKeepBothCopiesAndRejectUnsafeLocations(t *testing.T) {
 	if err = os.Mkdir(other, 0700); err != nil {
 		t.Fatal(err)
 	}
+	if err = os.MkdirAll(filepath.Dir(backupRoot(other)), 0700); err != nil {
+		t.Fatal(err)
+	}
 	if err = os.WriteFile(backupRoot(other), []byte("existing unrelated file"), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -149,10 +152,6 @@ func TestReinstalledDataKeepsItsAutomaticBackupAssociation(t *testing.T) {
 	}
 	// Restore to a new app folder on the same volume, with the whole data folder.
 	if err := os.Rename(dataBefore, filepath.Join(restored, "data")); err != nil {
-		t.Fatal(err)
-	}
-	// Move its central backup folder as a USB restore would.
-	if err := os.Rename(backupRoot(s.Root), backupRoot(restored)); err != nil {
 		t.Fatal(err)
 	}
 	again, err := openStore(restored)
