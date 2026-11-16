@@ -1,0 +1,184 @@
+NEIGHBOUR CHAT 7.1 - KOREADER PLUGIN
+
+INSTALL - DRAG ONE FOLDER
+1. Stop an older chat service, exit KOReader and connect USB. On upgrade,
+   keep PC copies of lan_chat/data and NeighbourChat-Backups if present.
+   Restart Kindle once if the older chat service is still running.
+2. Extract NeighbourChat-KOReader.zip. Copy the WHOLE neighbourchat.koplugin
+   folder into your existing KOReader plugins folder, replacing that plugin
+   on upgrade. You can also copy dist/neighbourchat.koplugin directly.
+3. Check the result:
+     koreader/plugins/neighbourchat.koplugin/main.lua
+     koreader/plugins/neighbourchat.koplugin/bin/neighbour-chat
+   Do not put the folder inside another neighbourchat.koplugin folder.
+4. Eject/disconnect USB and restart KOReader. Open Tools -> More tools ->
+   Neighbour Chat. Choose Reading popup or Full screen. If missing, enable
+   Neighbour Chat under Plugin management and restart KOReader.
+
+The folder includes its background service. Nothing else is installed on the
+Kindle: no Python, compiler, installer, library launcher or separate Kindle app.
+Target: already-working KOReader on Kindle Linux ARMv7. This is not an
+Android/Kobo/desktop plugin or a jailbreak/KOReader installer.
+
+HOST OR JOIN - SAME APP ON EVERY KINDLE
+Home has three large controls: Host a chat, Find a chat and Recent chats.
+Host a chat starts this Kindle's server and signs its owner in as admin.
+A fresh installation first asks for a host password of at least 10 characters;
+that password protects remote admin login. The local KOReader owner uses its
+private controller key to manage this Kindle without retyping that password.
+Every Kindle can host its own server or join someone else's using this plugin.
+One chat is shown at a time; joining another server does not stop your own
+hosted server. Home -> Your hosted chat returns to its admin view.
+
+FIND A CHAT WITHOUT TYPING AN IP
+1. Host: Home -> Host a chat -> Manage -> Turn discovery on. Give the chat a
+   short name. Manage -> Invite / check code shows the join and check codes.
+2. Client: Home -> Find a chat. A single scan takes about three seconds.
+   Tap the host's name. On the first join, compare the server check code with
+   the host, confirm it matches, then sign in or request an account.
+3. Host: approve requests under Manage -> Join requests. New users then sign in.
+4. Host: Manage -> Turn discovery off after people have joined. The app will
+   no longer find this host on new scans; existing connections keep working.
+Discovery starts OFF on each service start/reboot and closes when hosting stops.
+It stays on when the UI is hidden until you turn it off or stop the service.
+Turning it off is not a firewall or a block on new accounts: known addresses,
+saved hosts and independent network scanners can still reach the running HTTPS
+server. Join codes, approved accounts, passwords and bans control actual access.
+Both devices must share private IPv4 Wi-Fi. Guest isolation or blocked UDP
+broadcast can prevent discovery; Recent chats and Enter IP manually still work.
+Discovery returns only a name and the sender's address. It never grants trust,
+exposes credentials or sends passwords before HTTPS certificate verification.
+It finds a host automatically, but does not save account passwords or bypass
+sign-in/approval. A hidden window keeps its current authenticated session.
+
+RECENT ADDRESSES
+Home -> Recent chats lists up to eight trusted hosts, newest first. Tap an address
+to verify its saved HTTPS certificate pin, then sign in. Forget removes that
+address and trust pin. Reconnecting never stores or autofills passwords.
+A changed certificate requires forgetting the address, joining again and
+comparing the new code with the host. Addresses survive service/Kindle restarts.
+
+ROOMS / PEOPLE / HOST TOOLS
+People shows approved users across rooms; choose someone to write privately.
+Active means the host saw activity within 90 seconds, not a live socket probe.
+Rooms shows your room and available rooms. Only the host assigns rooms.
+As admin, choose a room to move yourself/another account or delete it; Create
+room adds one. A regular user can ask the host privately to move rooms.
+Public messages and files stay within their room. Private messages/files can
+cross rooms. Search follows the same permissions. Deleting a room moves its
+members to Lobby and archives public history; recreating the name does not
+reveal that history. Private conversations remain available to their parties.
+Manage includes requests, accounts, rooms, private inbox and invitations.
+People -> Rooms also opens the room list.
+Kick signs a user out but allows another login. Ban blocks their account and
+last known private Wi-Fi IP when available; this may affect devices sharing
+that IP. Unban removes the account's stored IP rule and requires a fresh login.
+Message host or a public message starting @admin sends privately to the host.
+Connection latency is shown in the full-screen status line.
+
+FEATURE MERGE
+Communication-Script was reviewed for rooms, approval, cross-room private
+messaging, admin inbox, kick/ban/unban and latency. Those workflows are now
+available through the KOReader plugin. This uses Neighbour Chat's pinned HTTPS
+protocol; original Communication-Script TCP/Fernet clients cannot connect
+directly. Its hard-coded shared-key transport was not imported. The original
+Communication-Script repository was left unchanged.
+
+USE WHILE READING
+Full screen has four visible tabs: Home, Chat, People and Manage.
+Home and nearby chats use large cards with explanatory subtitles.
+Chat controls are split into readable rows; the keyboard opens only on demand.
+The current tab is marked in brackets. Lists have Previous/Next buttons.
+Chat shows newest messages first; Older/Latest switch history pages.
+Full screen fills the display with native KOReader widgets. Pop-up
+switches to a bottom-right popup, leaving much of the page visible. Reading
+gestures outside the popup go to the book; touches inside operate chat.
+Assign the registered Neighbour Chat: reading popup or Neighbour Chat: full
+screen action in KOReader Gestures/QuickMenu for quick access from a book.
+The keyboard opens only when you choose an input. Back/Keep draft preserves
+unsent message text in memory. Confirmed sends clear only their matching draft.
+
+HIDE / DISCONNECT / STOP
+X, Back or Hide chat closes only the window. Your signed-in connection and
+hosting keep running, including when changing books or leaving KOReader.
+Reopening uses that existing session instead of starting from scratch.
+Disconnect from chat signs out and clears its cache/draft, while a room you
+hosted remains available for others. Stop hosting ends that room but keeps
+saved data. Stop chat completely ends the connection, hosting and background
+service. Reopening after an intentional Stop starts a new service/session.
+
+POWER AND EFFICIENCY
+KOReader does not poll or redraw the hidden chat window. The service checks
+about every 10 seconds while chat is visible, and every 30 seconds while
+hidden, with backoff up to 60 seconds on failure. Normal checks fetch only new
+messages and reuse the recipient list; full history/recipient refreshes occur
+roughly once a minute or when explicitly requested. The reader keeps only a
+bounded message page and uses conditional local state requests: unchanged
+content is not retransmitted or redrawn. LAN operations and file transfers
+run outside the reading UI thread; file contents stream in bounded buffers.
+The bundled service uses stripped ARM code and a compact statically linked
+SQLite engine with extension loading disabled. No compiler/runtime downloads
+are shipped. The ZIP is for transfer; extract it before copying the folder.
+
+Suspend/resume pauses/resumes polling and preserves logical session state.
+This plugin does not override Kindle sleep or power management. Sleep/Wi-Fi
+off can interrupt connectivity; a host must stay awake to serve others. The
+normal 12-hour login lifetime, reboot, password changes or service stop can
+require signing in again. Account passwords are not stored to bypass expiry.
+
+FILES
+Chat -> To: Room / a person -> Write message -> Send.
+People -> choose a person opens a private message directly.
+Chat -> Files lists files available to you. Share a file opens the
+native file chooser; long-press a file, choose it, then select recipients.
+Downloads use unique names in Internal Storage/NeighbourChat-Downloads and
+do not overwrite existing files. Downloaded copies are ordinary files outside
+saved-content encryption. The host's file limits and permissions still apply.
+
+DATA / BACKUPS
+Live messages, accounts and uploaded files: Internal Storage/lan_chat/data
+All managed backups: Internal Storage/NeighbourChat-Backups
+One diagnostic log: Internal Storage/NeighbourChat.log
+Existing v4.x data, password hashes, HTTPS identity and optional saved-content
+encryption are reused. If encrypted content is locked, choose Home -> Host a chat -> Unlock.
+Copy both live data and the complete backup folder for a PC safety copy.
+An old controller on the same port is not killed blindly: stop it/restart the
+Kindle before using the plugin. The plugin starts its own bundled service.
+
+REMOVE
+Choose Home -> Stop, exit KOReader, connect USB and delete
+only plugins/neighbourchat.koplugin. Chat data, backups and the log remain.
+
+VERIFICATION
+Go regression tests cover HTTPS/pinning, the authenticated loopback bridge,
+message retries, data/backups, files, disconnect and actual service shutdown.
+LuaJIT tests check window lifecycle, popup bounds/input forwarding, drafts,
+conditional updates and menu/gesture registration using KOReader widget stubs.
+These are not a KOReader emulator or a physical Kindle test. Rendering, touch,
+keyboard, reader gesture interactions, battery use and suspend behaviour on
+Vera-jailbroken Kindle 12th generation (2024), firmware 5.20.2 remain unverified.
+
+DEVELOPER BUILD (OPTIONAL, PC ONLY)
+Install Go 1.27.4 and Zig 0.17.1 on the build PC, then run:
+  python tools/build-koreader.py --scan
+This builds the compact statically linked ARM service and creates only the
+KOReader folder/ZIP plus its source ZIP. Tests require an installed PC C compiler
+(Zig is used). LuaJIT contract tests additionally use Python 3.14 and lupa 2.8:
+  python -m pip install --target koreader/build/testdeps lupa==2.8
+  python koreader/tests/test_plugin.py
+Caches live in build/ and can be removed after building. No build tools go to
+Kindle. SQLite remains compatible with old databases; the encryption/password
+algorithms and access controls are unchanged.
+
+Upstream API references (checked 2026-11-11):
+https://github.com/koreader/koreader/blob/master/plugins/hello.koplugin/main.lua
+https://github.com/koreader/koreader/blob/master/frontend/ui/uimanager.lua
+https://github.com/koreader/koreader/blob/master/frontend/ui/widget/scrolltextwidget.lua
+https://github.com/koreader/koreader/blob/master/frontend/ui/widget/pathchooser.lua
+https://github.com/mattn/go-sqlite3
+
+7.1 SAFETY FIXES
+Upgrade the host and each client for the latest room-change protections.
+Changing chat/account/room discards its unsent draft/recipient selection;
+messages are never silently sent from an old editor into a new context.
+Very large result pages show a trimming notice. Stored messages are retained.

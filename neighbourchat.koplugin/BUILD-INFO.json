@@ -1,0 +1,12 @@
+{
+  "version": "7.1",
+  "target": "linux/arm/v7",
+  "static": true,
+  "binary_sha256": "dc08abf4a983d1968e1db1a3712cd6ecface88993b77a9879cefa2f75dbb5558",
+  "binary_bytes": 11624280,
+  "native_app_installer": false,
+  "kindle_tested": false,
+  "compiler": "go version go1.27.4 windows/amd64",
+  "sqlite": "statically linked C engine; extension loading disabled",
+  "strip_c_debug": true
+}
