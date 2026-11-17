@@ -83,6 +83,8 @@ end
 function Chat:addToMainMenu(items)
     items.neighbourchat = {
         text="Neighbour Chat", sorting_hint="more_tools", sub_item_table={
+            {text="Start Server", callback=function() self:startServer() end},
+            {text="Connect to Server", callback=function() self:connectToServer() end},
             {text="Open chat", callback=function() self:open(false) end},
             {text="Open full screen", callback=function() self:open(true) end},
             {text="Start chat service", callback=function() self:startService() end},
@@ -91,6 +93,16 @@ function Chat:addToMainMenu(items)
             {text="Stop chat service", callback=function() self:stop() end},
         },
     }
+end
+
+function Chat:startServer()
+    shared.pending_action = {action="host"}
+    self:open(false)
+end
+
+function Chat:connectToServer()
+    shared.pending_screen = "connect"
+    self:open(false)
 end
 
 function Chat:onNeighbourChatPopup()
@@ -198,6 +210,14 @@ function Chat:tick()
             local state, read_error = client:readState()
             if state then
                 self.failed_reads = 0
+                if not state.busy and shared.pending_action then
+                    local action = shared.pending_action
+                    shared.pending_action = nil
+                    self:action(action)
+                elseif not state.busy and shared.pending_screen == "connect" then
+                    shared.pending_screen = nil
+                    self:join()
+                end
                 if shared.teardown and not state.busy then
                     if state.error and state.error ~= "" then
                         shared.teardown = nil
@@ -483,11 +503,15 @@ function Chat:hostTools()
     local rows = {
         row("Invite / check code", function() self:action{action="invite"} end),
         row("Refresh host data", function() self:action{action="admin"} end),
+        row((s.discoverable and "Discovery: ON (tap to turn off)" or "Discovery: OFF (tap to turn on)"), function()
+            self:action{action=s.discoverable and "discovery-off" or "discovery-on", name="Neighbour Chat"}
+        end),
         row("End chat and stop hosting", function() self:endChat() end),
         row("Hide", function() self:hide() end),
     }
     if type(s.pending) == "table" and #s.pending > 0 then
-        rows[#rows + 1] = row("Approve first request", function() self:action{action="approve", id=s.pending[1].id} end)
+        rows[#rows + 1] = row("Approve: " .. tostring(s.pending[1].display or s.pending[1].username or "request"), function() self:action{action="approve", id=s.pending[1].id} end)
+        rows[#rows + 1] = row("Reject: " .. tostring(s.pending[1].display or s.pending[1].username or "request"), function() self:action{action="deny", id=s.pending[1].id} end)
     end
     self:showRows("Host tools", rows)
 end
