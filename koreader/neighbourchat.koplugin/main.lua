@@ -68,13 +68,11 @@ end
 function Chat:addToMainMenu(items)
     items.neighbourchat = {
         text="Neighbour Chat", sorting_hint="more_tools", sub_item_table={
-            {text="Start Server", callback=function() self:startServer() end},
-            {text="Connect to Server", callback=function() self:connectToServer() end},
             {text="Open chat", callback=function() self:open(false) end},
-            {text="Open full screen", callback=function() self:open(true) end},
-            {text="Start chat service", callback=function() self:startService() end},
+            {text="Host on this Kindle", callback=function() self:startServer() end},
+            {text="Find nearby chats", callback=function() self:open(false) end},
+            {text="Full-screen chat", callback=function() self:open(true) end},
             {text="Disconnect", callback=function() self:disconnect() end},
-            {text="End chat", callback=function() self:endChat() end},
             {text="Stop chat service", callback=function() self:stop() end},
         },
     }
@@ -125,6 +123,13 @@ function Chat:closeMenu()
     end
 end
 
+function Chat:onMenuClosed(menu)
+    if self.menu == menu then self.menu = nil end
+    if not self.closing_menu and shared.owner == self then
+        self:hide()
+    end
+end
+
 function Chat:cancelBackground()
     if shared.background_poll then
         safe_call(function() UIManager:unschedule(shared.background_poll) end)
@@ -134,13 +139,18 @@ end
 
 function Chat:hide(keep_background)
     self.generation = (self.generation or 0) + 1
+    if shared.owner == self then shared.owner = nil end
     self:closeMenu()
     if self.dialog then
         local dialog = self.dialog
         self.dialog = nil
         safe_call(function() UIManager:close(dialog) end)
     end
-    if shared.owner == self then shared.owner = nil end
+    if self.viewer then
+        local viewer = self.viewer
+        self.viewer = nil
+        safe_call(function() UIManager:close(viewer) end)
+    end
     if keep_background == false then
         self:cancelBackground()
         shared.background = nil
@@ -158,6 +168,7 @@ function Chat:open(full)
     shared.background = self
     self.generation = (self.generation or 0) + 1
     shared.full = full == true
+    shared.auto_scan = not shared.pending_action and not shared.pending_screen
     self.failed_reads = 0
     self:render()
     self:scheduleBackground(0.1)
@@ -202,6 +213,13 @@ function Chat:tick()
                 elseif not state.busy and shared.pending_screen == "connect" then
                     shared.pending_screen = nil
                     self:join()
+                elseif not state.busy and shared.auto_scan and state.stage == "idle" and not state.connected then
+                    shared.auto_scan = nil
+                    self:action{action="scan"}
+                end
+                if not state.busy and shared.show_ip_pending then
+                    shared.show_ip_pending = nil
+                    self:displayHostIP(state)
                 end
                 if shared.teardown and not state.busy then
                     if state.error and state.error ~= "" then
@@ -266,10 +284,18 @@ function Chat:render()
         end, enabled)
     end
     if s.error and s.error ~= "" then
-        title = "Chat unavailable"
-        add("Start / retry service", function() self:startService() end)
-        add("Retry", function() client.starting=nil; shared.ready=nil; self:render() end)
-        add("Hide", function() self:hide() end)
+        title = shared.ready and "Could not complete that action" or "Chat service unavailable"
+        add("Details: " .. tostring(s.error), function() end, false)
+        if shared.ready then
+            add("Try scan again", function() self:action{action="scan"} end)
+            add("Join by Wi-Fi address", function() self:join() end)
+            add("Host on this Kindle", function() self:action{action="host"} end)
+            add("Home", function() self:home() end)
+        else
+            add("Start / retry service", function() self:startService() end)
+            add("Retry", function() client.starting=nil; shared.ready=nil; self:render() end)
+        end
+        add("Close", function() self:hide() end)
     elseif not shared.ready or s.stage == "starting" then
         title = "Starting chat"
         add("Please wait…", function() end, false)
@@ -296,59 +322,144 @@ function Chat:render()
         add("Connected" .. (s.display and (" as " .. tostring(s.display)) or ""), function() end, false)
         add("Open messages", function() self:messages() end)
         add("People", function() self:people() end)
-        if s.admin then add("Host tools", function() self:hostTools() end) end
+        if s.admin then
+            add("Show my IP address", function()
+                shared.show_ip_pending = true
+                self:action{action="invite"}
+            end)
+            add("Host tools", function() self:hostTools() end)
+        end
         add("Disconnect", function() self:disconnect() end)
         add("End chat", function() self:endChat() end)
         add("Hide", function() self:hide() end)
     else
-        title = "Start or join a chat"
-        add("Service ready", function() end, false)
-        add("Host on this Kindle", function() self:action{action="host"} end)
+        title = s.hosting and "YOUR KINDLE | HOST" or "NEIGHBOUR CHAT | HOME"
+        add(s.hosting and "Open your hosted chat" or "Host on this Kindle", function() self:action{action="host"} end)
+        add("Scan nearby chats - refresh", function() shared.auto_scan=nil; self:action{action="scan"} end)
         add("Join by Wi-Fi address", function() self:join() end)
-        add("Scan nearby chats", function() self:action{action="scan"} end)
-        add("Hide", function() self:hide() end)
-    end
-
-    function Chat:startService()
-        shared.background = self
-        shared.ready = nil
-        client.starting = nil
-        self:open(shared.full == true)
-    end
-
-    function Chat:disconnect()
-        if not shared.ready then
-            self:message("Chat service is not running.")
-            return
+        if s.hosting then
+            add("Show my IP address", function()
+                shared.show_ip_pending = true
+                self:action{action="invite"}
+            end)
+            add("Host controls", function() self:hostTools() end)
         end
-        self:confirm("Disconnect from this chat? The service and saved login state remain available.", "Disconnect", function()
-            if self:action{action="disconnect"} then
-                shared.draft = ""
-                shared.recipient = nil
-                self:render()
+        local nearby = list(s.nearby)
+        if #nearby > 0 then
+            add("NEARBY CHATS", function() end, false)
+            for _, host in ipairs(nearby) do
+                if type(host) == "table" then
+                    local name = tostring(host.name or "Nearby chat")
+                    local address = tostring(host.address or "")
+                    add(name .. (address ~= "" and ("\n" .. address) or ""), function()
+                        self:action{action="join-nearby", address=address}
+                    end)
+                end
             end
-        end)
+        elseif s.scanned then
+            add("No chats found. Ask the host to turn discovery on, or join by address.", function() end, false)
+        else
+            add("Searching your Wi-Fi for chats...", function() end, false)
+        end
+        local recent = list(s.recent_hosts)
+        if #recent > 0 then
+            add("RECENT CHATS", function() end, false)
+            for _, address in ipairs(recent) do
+                local saved_address = tostring(address)
+                add("Reconnect - " .. saved_address, function()
+                    self:action{action="reconnect", address=saved_address}
+                end)
+            end
+        end
+        add("Close", function() self:hide() end)
     end
-    local ok, menu = safe_call(function()
-        return Menu:new{title=title, item_table=rows, width=Device.screen:getWidth()}
+
+    local screen_width = Device.screen:getWidth()
+    local screen_height = Device.screen:getHeight()
+    local full = shared.full == true
+    local menu
+    local ok, value = safe_call(function()
+        menu = Menu:new{
+            title=title,
+            subtitle=(s.notice and s.notice ~= "") and s.notice or nil,
+            item_table=rows,
+            width=full and math.floor(screen_width * 0.98) or math.floor(screen_width * 0.86),
+            height=full and math.floor(screen_height * 0.96) or math.floor(screen_height * 0.72),
+            is_popout=not full,
+            items_max_lines=2,
+            close_callback=function() self:onMenuClosed(menu) end,
+        }
+        return menu
     end)
+    if not ok then menu = nil end
     if not ok or not menu then
-        self:message("Could not draw the chat screen safely.")
+        self:message(ok and "Could not draw the chat screen safely." or value)
         return
     end
     self.menu = menu
-    menu.onCloseWidget = function()
-        if self.menu == menu then self.menu = nil end
-        if not self.closing_menu and shared.owner == self then
-            self:hide()
-        end
-    end
     safe_call(function() UIManager:show(menu) end)
 end
 
+function Chat:startService()
+    shared.background = self
+    shared.ready = nil
+    client.starting = nil
+    self:open(shared.full == true)
+end
+
+function Chat:disconnect()
+    if not shared.ready then
+        self:message("Chat service is not running.")
+        return
+    end
+    self:confirm("Disconnect from this chat? The service and saved login state remain available.", "Disconnect", function()
+        if self:action{action="disconnect"} then
+            shared.draft = ""
+            shared.recipient = nil
+            self:render()
+        end
+    end)
+end
+
 function Chat:home()
-    client.state = {stage="idle", hosting=client.state.hosting}
+    client.state = {stage="idle", hosting=client.state.hosting, nearby={}, scanned=false}
+    shared.auto_scan = true
     self:render()
+end
+
+function Chat:displayHostIP(state)
+    local lines = {"Share one of these addresses with someone on the same Wi-Fi:", ""}
+    for _, address in ipairs(list(state.addresses)) do
+        lines[#lines + 1] = tostring(address)
+    end
+    if #lines == 2 then
+        lines[#lines + 1] = "No Wi-Fi address is available. Connect this Kindle to Wi-Fi and try again."
+    end
+    if state.join_code and state.join_code ~= "" then
+        lines[#lines + 1] = ""
+        lines[#lines + 1] = "Join code: " .. tostring(state.join_code)
+        lines[#lines + 1] = "Turn discovery on in Host controls for automatic finding."
+    end
+    self:showTextViewer("Your chat - IP address", table.concat(lines, "\n"))
+end
+
+function Chat:showTextViewer(title, text)
+    self:closeMenu()
+    local viewer
+    local ok, value = safe_call(function()
+        viewer = TextViewer:new{title=title, text=text}
+        return viewer
+    end)
+    if not ok or not viewer then
+        self:message(ok and "Could not open this screen." or value)
+        return
+    end
+    self.viewer = viewer
+    viewer.onCloseWidget = function()
+        if self.viewer == viewer then self.viewer = nil end
+        if shared.owner == self then self:render() end
+    end
+    safe_call(function() UIManager:show(viewer) end)
 end
 
 function Chat:action(value)
@@ -453,7 +564,7 @@ function Chat:messages()
         text[#text + 1] = ""
     end
     local body = #text > 0 and table.concat(text, "\n") or "No messages yet."
-    safe_call(function() UIManager:show(TextViewer:new{title="Messages", text=body}) end)
+    self:showTextViewer("Messages", body)
 end
 
 function Chat:people()
@@ -473,6 +584,10 @@ end
 function Chat:hostTools()
     local s = client.state or {}
     local rows = {
+        row("Show my IP address", function()
+            shared.show_ip_pending = true
+            self:action{action="invite"}
+        end),
         row("Invite / check code", function() self:action{action="invite"} end),
         row("Refresh host data", function() self:action{action="admin"} end),
         row((s.discoverable and "Discovery: ON (tap to turn off)" or "Discovery: OFF (tap to turn on)"), function()
@@ -490,18 +605,28 @@ end
 
 function Chat:showRows(title, rows)
     self:closeMenu()
-    local ok, menu = safe_call(function() return Menu:new{title=title, item_table=rows, width=Device.screen:getWidth()} end)
+    local screen_width = Device.screen:getWidth()
+    local screen_height = Device.screen:getHeight()
+    local full = shared.full == true
+    local menu
+    local ok, value = safe_call(function()
+        menu = Menu:new{
+            title=title,
+            item_table=rows,
+            width=full and math.floor(screen_width * 0.98) or math.floor(screen_width * 0.86),
+            height=full and math.floor(screen_height * 0.96) or math.floor(screen_height * 0.72),
+            is_popout=not full,
+            items_max_lines=2,
+            close_callback=function() self:onMenuClosed(menu) end,
+        }
+        return menu
+    end)
+    if not ok then menu = nil end
     if ok and menu then
         self.menu = menu
-        menu.onCloseWidget = function()
-            if self.menu == menu then self.menu = nil end
-            if not self.closing_menu and shared.owner == self then
-                self:hide()
-            end
-        end
         safe_call(function() UIManager:show(menu) end)
     else
-        self:message(ok and "Could not draw this screen safely." or menu)
+        self:message(ok and "Could not draw this screen safely." or value)
     end
 end
 

@@ -22,7 +22,10 @@ Target: already-working KOReader on Kindle Linux ARMv7. This is not an
 Android/Kobo/desktop plugin or a jailbreak/KOReader installer.
 
 HOST OR JOIN - SAME APP ON EVERY KINDLE
-Home has three large controls: Host a chat, Find a chat and Recent chats.
+Home starts a nearby Wi-Fi scan automatically and shows hosts as tap-to-join
+results. Scan nearby chats refreshes the results; Join by Wi-Fi address remains
+available when discovery is off. The host can use Show my IP address to share
+an address and join code directly.
 Host a chat starts this Kindle's server and signs its owner in as admin. There
 is no host password: the local KOReader controller on the Kindle running the
 server owns host controls. Other Kindles join with approved member accounts.
@@ -31,11 +34,11 @@ One chat is shown at a time; joining another server does not stop your own
 hosted server. Home -> Your hosted chat returns to its admin view.
 
 FIND A CHAT WITHOUT TYPING AN IP
-1. Host: Home -> Host a chat -> Manage -> Turn discovery on. Give the chat a
-   short name. Manage -> Invite / check code shows the join and check codes.
-2. Client: Home -> Find a chat. A single scan takes about three seconds.
-   Tap the host's name. On the first join, compare the server check code with
-   the host, confirm it matches, then sign in or request an account.
+1. Host: Host controls -> Discovery: OFF. Turn discovery on. Show my IP
+   address also displays the join code.
+2. Client: Open Home and wait for the scan to finish. Tap the host's name.
+   On the first join, compare the server check code with the host, confirm it
+   matches, then sign in or request an account.
 3. Host: approve requests under Manage -> Join requests. New users then sign in.
 4. Host: Manage -> Turn discovery off after people have joined. The app will
    no longer find this host on new scans; existing connections keep working.
@@ -85,14 +88,12 @@ directly. Its hard-coded shared-key transport was not imported. The original
 Communication-Script repository was left unchanged.
 
 USE WHILE READING
-Full screen has four visible tabs: Home, Chat, People and Manage.
-Home and nearby chats use large cards with explanatory subtitles.
-Chat controls are split into readable rows; the keyboard opens only on demand.
-The current tab is marked in brackets. Lists have Previous/Next buttons.
-Chat shows newest messages first; Older/Latest switch history pages.
-Full screen fills the display with native KOReader widgets. Pop-up
-switches to a bottom-right popup, leaving much of the page visible. Reading
-gestures outside the popup go to the book; touches inside operate chat.
+The screen uses readable, full-width action rows in full-screen mode and a
+smaller centered menu in reading-popup mode. Home, nearby results, host tools,
+people and messages use the same clear menu style. Reading gestures outside
+the popup go to the book; touches inside operate chat. The chat menu's close
+button, Back, or Close dismisses the panel cleanly while the connection stays
+in the background.
 Assign the registered Neighbour Chat: reading popup or Neighbour Chat: full
 screen action in KOReader Gestures/QuickMenu for quick access from a book.
 The keyboard opens only when you choose an input. Back/Keep draft preserves

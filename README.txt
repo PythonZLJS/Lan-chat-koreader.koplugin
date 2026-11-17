@@ -6,7 +6,8 @@ Installation/use/removal: INSTALL.txt
 
 Copy the plugin folder into KOReader/plugins, restart KOReader, and open
 Tools -> More tools -> Neighbour Chat. No installer or separate Kindle app.
-Remade Home/Chat/People/Manage navigation with large Host / Find cards.
+Home now scans nearby chats automatically, shows results you can tap to join,
+and includes a Show my IP address action for sharing your hosted chat.
 One plugin is both client and server: hosting makes this Kindle's owner admin.
 There is no host password; only the Kindle running the server receives host
 controls through its local owner controller.
@@ -17,7 +18,8 @@ can turn discovery off without disconnecting people. It defaults off after
 service restarts. This hides app discovery, not the server from port scanners.
 Recent trusted IP addresses, private chat/files, rooms and moderation remain.
 Original Communication-Script TCP/Fernet clients use a different protocol.
-Full screen and a reading popup share a persistent background connection.
+The redesigned full-screen and reading-popup menus share a persistent
+background connection. Closing either menu returns cleanly to the book.
 Hide keeps it running; Disconnect, Stop hosting and Stop completely are
 separate controls. Existing chats and the central backups folder are retained.
 
