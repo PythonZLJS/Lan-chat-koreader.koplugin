@@ -110,7 +110,7 @@ function Chat:addToMainMenu(menu_items)
     menu_items.kindle_lan_chat = {
         text = _("LAN Chat"),
         sorting_hint = "tools",
-        callback = function() self:showHome() end,
+        callback = function() self:runAction("Open LAN Chat", function() self:showHome() end) end,
     }
 end
 
@@ -123,14 +123,38 @@ function Chat:notify(text)
     UIManager:show(InfoMessage:new{ text = text })
 end
 
+function Chat:runAction(label, callback)
+    self:log("INFO", "UI action: " .. tostring(label))
+    local ok, err = xpcall(callback, debug.traceback)
+    if not ok then
+        self:log("ERROR", "UI action failed: " .. tostring(err))
+        self:notify(_("That action failed. Create a support log entry and send me kindle-lan-chat-debug.log."))
+    end
+end
+
+function Chat:showMenu(title, rows)
+    for index, row in ipairs(rows) do
+        if row.callback and not row._lan_chat_wrapped then
+            local original = row.callback
+            local item_index = index
+            row.callback = function() self:runAction(tostring(title) .. " item " .. tostring(item_index), original) end
+            row._lan_chat_wrapped = true
+        end
+    end
+    self:log("INFO", "Opened menu: " .. tostring(title))
+    UIManager:show(Menu:new{ title = title, item_table = rows })
+end
+
 function Chat:input(title, initial, callback)
     local dialog
     dialog = InputDialog:new{
         title = title, input = initial or "",
         buttons = {
             { { text = _("Cancel"), id = "close", callback = function() UIManager:close(dialog) end },
-              { text = _("OK"), callback = function()
-                  local v = dialog:getInputText(); UIManager:close(dialog); callback(v)
+              { text = _("Continue"), is_enter_default = true, callback = function()
+                  local v = dialog:getInputText(); UIManager:close(dialog)
+                  local ok, err = xpcall(function() callback(v) end, debug.traceback)
+                  if not ok then self:log("ERROR", "Input action failed: " .. tostring(err)); self:notify(_("That action failed. See kindle-lan-chat-debug.log.")) end
               end } },
         },
     }
@@ -139,31 +163,30 @@ end
 
 function Chat:showHome()
     local rows = {
-        { text = self.status, mandatory = true },
-        { text = self.hosting and _("Hosting — open host controls") or _("Host a chat on this Kindle"), callback = function() self:hostMenu() end },
+        { text = self.hosting and _("Host controls") or _("Host a chat on this Kindle"), callback = function() self:hostMenu() end },
         { text = _("Find nearby chats"), callback = function() self:scanChats() end },
         { text = _("Join by address"), callback = function() self:joinAddress() end },
+        { text = self.running and _("Open chat") or _("Chat is not connected"), enabled = self.running, callback = function() self:chatMenu() end },
         { text = _("Recent hosts"), callback = function() self:recentMenu() end },
         { text = _("Create support log entry"), callback = function() self:diagnostics() end },
         { text = _("Show debug log file location"), callback = function() self:notify(self.log_file) end },
-        { text = self.running and _("Open chat") or _("Chat is not connected"), enabled = self.running, callback = function() self:chatMenu() end },
         { text = _("Close"), id = "close" },
     }
-    UIManager:show(Menu:new{ title = _("Kindle LAN Chat"), item_table = rows, onMenuSelect = function() end })
+    local title = _("LAN Chat") .. " — " .. tostring(self.status):sub(1, 28)
+    self:showMenu(title, rows)
 end
 
 function Chat:hostMenu()
-    local ip = self:getIP()
     local rows = {
-        { text = self.hosting and _("Hosting at %1:%2"):gsub("%%1", ip):gsub("%%2", tostring(PORT)) or _("Start hosting"), callback = function() self:startHost() end },
-        { text = self.discovery and _("Turn discovery off") or _("Turn discovery on"), callback = function() self:setDiscovery(not self.discovery); self:showHostInfo() end },
-        { text = _("Join requests (%1)"):gsub("%%1", tostring(#self.pending)), callback = function() self:requestsMenu() end },
-        { text = _("Members (%1)"):gsub("%%1", tostring(countKeys(self.users))), callback = function() self:membersMenu() end },
-        { text = _("Show host details"), callback = function() self:showHostInfo() end },
-        { text = _("Stop hosting and end chat"), callback = function() self:stopHost() end },
+        { text = self.hosting and _("Show host address and codes") or _("Start hosting"), callback = function() if self.hosting then self:showHostInfo() else self:startHost() end end },
+        { text = _("Join requests (%1)"):gsub("%%1", tostring(#self.pending)), callback = function() if self.hosting then self:requestsMenu() else self:notify(_("Start hosting first.")) end end },
+        { text = _("Open host chat"), callback = function() if self.hosting then self:chatMenu() else self:notify(_("Start hosting first.")) end end },
+        { text = self.discovery and _("Turn discovery off") or _("Turn discovery on"), callback = function() if self.hosting then if self:setDiscovery(not self.discovery) then self:showHostInfo() end else self:notify(_("Start hosting first.")) end end },
+        { text = _("Members (%1)"):gsub("%%1", tostring(countKeys(self.users))), callback = function() if self.hosting then self:membersMenu() else self:notify(_("Start hosting first.")) end end },
+        { text = _("Stop hosting and end chat"), callback = function() if self.hosting then self:stopHost() else self:notify(_("You are not hosting a chat.")) end end },
         { text = _("Back"), callback = function() self:showHome() end },
     }
-    UIManager:show(Menu:new{ title = _("Host controls"), item_table = rows })
+    self:showMenu(_("Host controls"), rows)
 end
 
 function Chat:showHostInfo()
@@ -347,7 +370,7 @@ function Chat:scanChats()
         rows[#rows + 1] = { text = _("Scan again"), callback = function() self:scanChats() end }
         rows[#rows + 1] = { text = _("Join by address"), callback = function() self:joinAddress() end }
         rows[#rows + 1] = { text = _("Back"), callback = function() self:showHome() end }
-        UIManager:show(Menu:new{ title = _("Nearby chats"), item_table = rows })
+        self:showMenu(_("Nearby chats"), rows)
     end
     UIManager:scheduleIn(0.15, collect)
 end
@@ -494,7 +517,7 @@ function Chat:requestsMenu()
     end
     if #rows == 0 then rows[1] = { text = _("No pending requests") } end
     rows[#rows + 1] = { text = _("Back"), callback = function() self:hostMenu() end }
-    UIManager:show(Menu:new{ title = _("Join requests"), item_table = rows })
+    self:showMenu(_("Join requests"), rows)
 end
 
 function Chat:approve(i)
@@ -508,7 +531,7 @@ function Chat:membersMenu()
     for name in pairs(self.users) do rows[#rows + 1] = { text = name } end
     if #rows == 0 then rows[1] = { text = _("No members yet") } end
     rows[#rows + 1] = { text = _("Back"), callback = function() self:hostMenu() end }
-    UIManager:show(Menu:new{ title = _("Members"), item_table = rows })
+    self:showMenu(_("Members"), rows)
 end
 
 function Chat:stopHost()
@@ -538,11 +561,11 @@ function Chat:joinAddress()
 end
 
 function Chat:joinMenu(ip, port)
-    UIManager:show(Menu:new{ title = ip .. ":" .. port, item_table = {
+    self:showMenu(ip .. ":" .. port, {
         { text = _("Request account"), callback = function() self:verifyHost(ip, port, function() self:requestAccount(ip, port) end) end },
         { text = _("Sign in"), callback = function() self:verifyHost(ip, port, function() self:login(ip, port) end) end },
         { text = _("Back"), callback = function() self:showHome() end },
-    } })
+    })
 end
 
 function Chat:verifyHost(ip, port, callback)
@@ -633,7 +656,7 @@ function Chat:chatMenu()
             self:showHome()
         end
     end }
-    UIManager:show(Menu:new{ title = _("LAN Chat"), item_table = rows })
+    self:showMenu(_("LAN Chat"), rows)
 end
 
 function Chat:hideChat()
@@ -656,7 +679,7 @@ function Chat:chooseRecipient()
         rows[#rows + 1] = { text = member_name, callback = function() self.selected_recipient = member_name; self:chatMenu() end }
     end
     rows[#rows + 1] = { text = _("Back"), callback = function() self:chatMenu() end }
-    UIManager:show(Menu:new{ title = _("Choose recipient"), item_table = rows })
+    self:showMenu(_("Choose recipient"), rows)
 end
 
 function Chat:pollMessages()
@@ -687,7 +710,7 @@ function Chat:recentMenu()
     end
     if #rows == 0 then rows[1] = { text = _("No recent hosts") } end
     rows[#rows + 1] = { text = _("Back"), callback = function() self:showHome() end }
-    UIManager:show(Menu:new{ title = _("Recent hosts"), item_table = rows })
+    self:showMenu(_("Recent hosts"), rows)
 end
 
 return Chat
