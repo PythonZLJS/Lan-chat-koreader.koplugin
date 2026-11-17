@@ -157,27 +157,12 @@ func openStore(root string) (*Store, error) {
 	if _, e = db.Exec("INSERT OR IGNORE INTO users(username,display_name,password_hash,status,created_at) VALUES(?,?,?,'approved',?)", adminUsername, "Host", "disabled-system-login", timestamp()); e != nil {
 		return nil, e
 	}
-	s.AdminHash = readText(filepath.Join(s.Data, "admin-password.hash"))
+	// Host ownership is granted by ownerRemote, not a host password. Ignore
+	// and retire password material created by previous releases.
+	s.AdminHash = ""
+	_ = os.Remove(filepath.Join(s.Data, "initial-admin-password.txt"))
+	_ = os.Remove(filepath.Join(s.Data, "admin-password.hash"))
 	s.JoinCode = readText(filepath.Join(s.Data, "join-code.txt"))
-	if s.AdminHash == "" {
-		if _, err := os.Stat(filepath.Join(s.Data, "admin-password.hash")); err == nil {
-			return nil, errors.New("the saved admin password hash is empty; restore it from backup")
-		}
-		password := readText(filepath.Join(s.Data, "initial-admin-password.txt"))
-		if password == "" {
-			password = randomToken(15)
-			if e = atomicWrite(filepath.Join(s.Data, "initial-admin-password.txt"), []byte(password), 0600); e != nil {
-				return nil, e
-			}
-		}
-		s.AdminHash, e = hashPassword(password)
-		if e != nil {
-			return nil, e
-		}
-		if e = atomicWrite(filepath.Join(s.Data, "admin-password.hash"), []byte(s.AdminHash), 0600); e != nil {
-			return nil, e
-		}
-	}
 	if s.JoinCode == "" {
 		s.JoinCode = strings.ToUpper(randomToken(9))
 		if e = atomicWrite(filepath.Join(s.Data, "join-code.txt"), []byte(s.JoinCode), 0600); e != nil {

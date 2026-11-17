@@ -1,4 +1,4 @@
-NEIGHBOUR CHAT 7.1 - SECURITY AND LIMITS
+NEIGHBOUR CHAT 7.2 - SECURITY AND LIMITS
 
 The native reader accesses a loopback-only bridge with Host/peer validation,
 a 256-bit bearer capability, and rejection of Origin-bearing control requests.

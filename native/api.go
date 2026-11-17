@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"mime"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -207,20 +206,6 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		a.adminData(w, r)
 	case p == "/api/admin/action" && r.Method == "POST" && s.Admin:
 		a.adminAction(w, r)
-	case p == "/api/admin/password" && r.Method == "POST" && s.Admin:
-		var v struct {
-			Current string `json:"current_password"`
-			New     string `json:"new_password"`
-		}
-		if !decodeJSON(w, r, &v) {
-			return
-		}
-		if e := a.Store.changeAdmin(v.Current, v.New); e != nil {
-			apiError(w, 400, e.Error())
-			return
-		}
-		a.Sessions.revoke(s.ID)
-		writeJSON(w, 200, map[string]bool{"ok": true, "reauthenticate": true})
 	default:
 		apiError(w, 404, "This action is not available.")
 	}
@@ -239,27 +224,18 @@ func (a *API) login(w http.ResponseWriter, r *http.Request, s APISession) {
 		apiError(w, 429, "Too many sign-in attempts. Wait 10 minutes.")
 		return
 	}
-	// The admin credential belongs to the machine hosting this server. A
-	// remote member must never gain host control by learning that password.
-	// The in-process web UI and the capability-protected reader controller
-	// reach the API through loopback; LAN clients have a non-loopback peer IP.
+	// Host ownership comes only from the server's local controller capability.
+	// There is no host password or remotely claimable admin login.
 	if v.Username == "admin" {
-		ip := net.ParseIP(clientIP(r))
-		if ip == nil || !ip.IsLoopback() {
-			apiError(w, 403, "Host admin sign-in is only available on the device running this server.")
-			return
-		}
+		apiError(w, 403, "The server owner controls host tools on the Kindle running this server.")
+		return
 	}
-	adminHash, version := a.Store.adminState()
-	hash := adminHash
+	_, version := a.Store.adminState()
+	var hash string
 	var uid int64
 	var display, status string
-	admin := v.Username == "admin"
-	if admin {
-		_ = a.Store.DB.QueryRow("SELECT id,display_name FROM users WHERE username=?", adminUsername).Scan(&uid, &display)
-	} else {
-		_ = a.Store.DB.QueryRow("SELECT id,display_name,status,password_hash,auth_version FROM users WHERE username=? AND username!=?", v.Username, adminUsername).Scan(&uid, &display, &status, &hash, &version)
-	}
+	admin := false
+	_ = a.Store.DB.QueryRow("SELECT id,display_name,status,password_hash,auth_version FROM users WHERE username=? AND username!=?", v.Username, adminUsername).Scan(&uid, &display, &status, &hash, &version)
 	verified := verifyPassword(hash, v.Password)
 	if !verified || uid == 0 {
 		apiError(w, 401, "Incorrect username or password.")

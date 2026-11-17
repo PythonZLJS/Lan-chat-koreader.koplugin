@@ -31,7 +31,7 @@ func run(args []string) error {
 		return errors.New("use serve, prepare, health, uninstall, or version")
 	}
 	if args[0] == "version" {
-		fmt.Println("Neighbour Chat 7.1 · KOReader service · Linux ARMv7")
+		fmt.Println("Neighbour Chat 7.2 · KOReader service · Linux ARMv7")
 		return nil
 	}
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)

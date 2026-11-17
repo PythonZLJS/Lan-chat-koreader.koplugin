@@ -67,7 +67,7 @@ type Page struct {
 	VaultEnabled, VaultLocked                                                               bool
 	AdminTab                                                                                string
 	Title, View, CSRF, Notice, Error, Address, Code, Pin, JoinCode, Username, Query, SendID string
-	Local, Hosting, Setup, Admin, Authenticated, More, Older                                bool
+	Local, Hosting, Admin, Authenticated, More, Older                                       bool
 	Session                                                                                 SessionInfo
 	Messages                                                                                []Message
 	Files                                                                                   []FileInfo
@@ -332,7 +332,7 @@ func (a *App) remember(origin, pin string) error {
 	return nil
 }
 func (a *App) basePage(s *WebSession, view string) Page {
-	p := Page{Title: "Neighbour Chat", View: view, CSRF: s.CSRF, Local: s.Local, Hosting: a.hosting(), Code: checkCode(a.Store.Fingerprint), Pin: a.Store.Fingerprint, JoinCode: a.Store.joinCode(), Setup: readText(filepath.Join(a.Store.Data, "initial-admin-password.txt")) != "", Notice: s.Notice, UploadLimit: 25}
+	p := Page{Title: "Neighbour Chat", View: view, CSRF: s.CSRF, Local: s.Local, Hosting: a.hosting(), Code: checkCode(a.Store.Fingerprint), Pin: a.Store.Fingerprint, JoinCode: a.Store.joinCode(), Notice: s.Notice, UploadLimit: 25}
 	s.Notice = ""
 	p.VaultEnabled, p.VaultLocked = a.Store.Vault.status()
 	p.VaultPending = a.Store.Vault.pending()
@@ -633,54 +633,23 @@ func (a *App) controls(w http.ResponseWriter, r *http.Request, s *WebSession) {
 			http.Redirect(w, r, "/privacy", 303)
 			return
 		}
-		if p.Setup {
-			http.Redirect(w, r, "/setup", 303)
-			return
-		}
 		if e := a.startHost(); e != nil {
 			p.Error = e.Error()
 			break
 		}
 		if s.Remote == nil || s.Remote.Origin != a.ownOrigin() || s.Remote.Pin != a.Store.Fingerprint {
-			s.Remote = a.ownRemote()
+			var err error
+			s.Remote, err = a.ownerRemote()
+			if err != nil {
+				p.Error = err.Error()
+				break
+			}
 		}
 		http.Redirect(w, r, "/chat", 303)
 		return
 	case "/setup":
-		p.View = "setup"
-		if !p.Setup {
-			http.Redirect(w, r, "/home", 303)
-			return
-		}
-		if r.Method == "POST" {
-			password := r.FormValue("password")
-			if password != r.FormValue("confirm") {
-				p.Error = "The passwords do not match."
-				break
-			}
-			initial := readText(filepath.Join(a.Store.Data, "initial-admin-password.txt"))
-			if e := a.Store.changeAdmin(initial, password); e != nil {
-				p.Error = "Could not set that password. Use 10 to 256 characters."
-				break
-			}
-			if e := a.startHost(); e != nil {
-				p.Error = e.Error()
-				break
-			}
-			s.Remote = a.ownRemote()
-			if _, e := s.Remote.info(); e != nil {
-				p.Error = e.Error()
-				break
-			}
-			if e := s.Remote.call("POST", "/api/login", map[string]string{"username": "admin", "password": password}, nil); e != nil {
-				p.Error = e.Error()
-				break
-			}
-			s.Notice = "Hosting is ready. Share the address and join code from Home."
-			a.rotateWeb(w, s, true)
-			http.Redirect(w, r, "/chat", 303)
-			return
-		}
+		http.Redirect(w, r, "/home", 303)
+		return
 	case "/join":
 		p.View = "join"
 		if r.Method == "POST" {
@@ -855,20 +824,6 @@ func (a *App) chatAction(w http.ResponseWriter, r *http.Request, s *WebSession, 
 			payload[key] = r.FormValue(key)
 		}
 		notice = "Changes saved."
-	case "/admin/password":
-		if !info.Admin {
-			http.Error(w, "Host permission required.", 403)
-			return
-		}
-		destination = "/login"
-		if r.FormValue("new_password") != r.FormValue("confirm_password") {
-			s.Notice = "The new passwords do not match."
-			http.Redirect(w, r, "/admin?tab=security", 303)
-			return
-		}
-		endpoint = "/api/admin/password"
-		payload = map[string]any{"current_password": r.FormValue("current_password"), "new_password": r.FormValue("new_password")}
-		notice = "Password changed. Sign in with the new password."
 	default:
 		http.NotFound(w, r)
 		return
@@ -878,12 +833,9 @@ func (a *App) chatAction(w http.ResponseWriter, r *http.Request, s *WebSession, 
 	}
 	if err != nil {
 		s.Notice = err.Error()
-		if r.URL.Path == "/admin/password" {
-			destination = "/admin?tab=security"
-		}
 	} else {
 		s.Notice = notice
-		if r.URL.Path == "/logout" || r.URL.Path == "/admin/password" {
+		if r.URL.Path == "/logout" {
 			a.rotateWeb(w, s, false)
 		}
 		if r.URL.Path == "/send" {
@@ -897,7 +849,7 @@ func (a *App) chatAction(w http.ResponseWriter, r *http.Request, s *WebSession, 
 }
 func adminTab(value string) string {
 	switch value {
-	case "accounts", "security", "storage", "history":
+	case "accounts", "storage", "history":
 		return value
 	}
 	return "requests"

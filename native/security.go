@@ -215,7 +215,14 @@ func (s *APISessions) rotate(w http.ResponseWriter, old APISession, uid int64, a
 	}
 	return v, true
 }
-func (s *APISessions) revoke(id string) { s.mu.Lock(); defer s.mu.Unlock(); delete(s.entries, id) }
+func (s *APISessions) revoke(id string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.entries, id)
+	if s.ownerID == id {
+		s.ownerID = ""
+	}
+}
 func clientIP(r *http.Request) string {
 	host, _, e := net.SplitHostPort(r.RemoteAddr)
 	if e != nil {
@@ -245,8 +252,11 @@ func (s *APISessions) grantOwner(uid, version int64) APISession {
 	if s.entries == nil {
 		s.entries = map[string]APISession{}
 	}
-	delete(s.entries, s.ownerID)
 	now := time.Now()
+	if current, ok := s.entries[s.ownerID]; ok && now.Before(current.Expires) {
+		return current
+	}
+	delete(s.entries, s.ownerID)
 	for id, session := range s.entries {
 		if !now.Before(session.Expires) {
 			delete(s.entries, id)

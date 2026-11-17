@@ -1,4 +1,4 @@
-NEIGHBOUR CHAT 7.1 - BUG AND SECURITY REVIEW
+NEIGHBOUR CHAT 7.2 - BUG AND SECURITY REVIEW
 Date: 2026-11-11
 Scope: current KOReader plugin and shared Go service, especially new discovery,
 local owner permissions, session lifecycle, room/file access and delayed GUI work.
@@ -45,10 +45,10 @@ FIXED FINDINGS
    Test: TestConcurrentSessionRotationCannotForkOneCookie (24 concurrent calls).
 
 7. High (authorization): the shared host admin password could be used from any
-   LAN device to claim the server's admin role. Admin password login is now
-   accepted only from loopback, which is used by the host's local web UI. The
-   server's capability-protected local owner session remains the KOReader
-   admin path; remote devices must use approved member accounts.
+   LAN device to claim the server's admin role. The host password flow and
+   password login have been removed. Host rights now come only from the
+   capability-protected owner session on the Kindle running the server.
+   Remote devices must use approved member accounts.
 
 7. Medium (availability): local owner login depended on creating an anonymous
    network session. Guest rate limits or a full session table could block the

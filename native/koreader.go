@@ -198,7 +198,7 @@ func (p *ReaderBridge) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch action.Action {
-	case "scan", "join-nearby", "discovery-on", "discovery-off", "host", "setup", "probe", "confirm", "login", "register", "refresh", "older", "latest", "send", "disconnect", "end-chat", "stop-host", "invite", "admin", "approve", "deny", "unlock", "lock", "files", "upload", "download", "reconnect", "forget", "people", "create-room", "delete-room", "move-user", "kick", "ban", "unban", "inbox", "search":
+	case "scan", "join-nearby", "discovery-on", "discovery-off", "host", "probe", "confirm", "login", "register", "refresh", "older", "latest", "send", "disconnect", "end-chat", "stop-host", "invite", "admin", "approve", "deny", "unlock", "lock", "files", "upload", "download", "reconnect", "forget", "people", "create-room", "delete-room", "move-user", "kick", "ban", "unban", "inbox", "search":
 	default:
 		apiError(w, 400, "Unknown chat action.")
 		return
@@ -535,10 +535,6 @@ func (p *ReaderBridge) execute(v ReaderAction) error {
 			p.change(func(s *ReaderState) { s.Stage = "locked"; s.VaultLocked = true })
 			return nil
 		}
-		if readText(filepath.Join(a.Store.Data, "initial-admin-password.txt")) != "" {
-			p.change(func(s *ReaderState) { s.Stage = "setup" })
-			return nil
-		}
 		if err := a.startHost(); err != nil {
 			return err
 		}
@@ -552,30 +548,6 @@ func (p *ReaderBridge) execute(v ReaderAction) error {
 			s.Address = "This Kindle"
 			s.Notice = "You are the host and admin. Turn on discovery when you want people to find this chat."
 		})
-		return p.refresh()
-	case "setup":
-		if v.Password != v.Confirm {
-			return errors.New("The passwords do not match.")
-		}
-		initial := readText(filepath.Join(a.Store.Data, "initial-admin-password.txt"))
-		if initial == "" {
-			return errors.New("Host setup is already complete. Sign in as admin.")
-		}
-		if err := a.Store.changeAdmin(initial, v.Password); err != nil {
-			return err
-		}
-		if err := a.startHost(); err != nil {
-			return err
-		}
-		p.setRemote(a.ownRemote())
-		p.before = 0
-		p.change(func(s *ReaderState) { s.Address = "This Kindle" })
-		if _, err := p.remote.info(); err != nil {
-			return err
-		}
-		if err := p.remote.call("POST", "/api/login", map[string]string{"username": "admin", "password": v.Password}, nil); err != nil {
-			return err
-		}
 		return p.refresh()
 	case "probe":
 		origin, err := privateOrigin(v.Address)

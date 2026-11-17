@@ -1,4 +1,4 @@
-NEIGHBOUR CHAT 7.1 - KOREADER PLUGIN
+NEIGHBOUR CHAT 7.2 - KOREADER PLUGIN
 
 INSTALL - DRAG ONE FOLDER
 1. Stop an older chat service, exit KOReader and connect USB. On upgrade,
@@ -23,11 +23,9 @@ Android/Kobo/desktop plugin or a jailbreak/KOReader installer.
 
 HOST OR JOIN - SAME APP ON EVERY KINDLE
 Home has three large controls: Host a chat, Find a chat and Recent chats.
-Host a chat starts this Kindle's server and signs its owner in as admin.
-A fresh installation asks the host to set its local admin password. Host admin
-rights stay on the device running the server; the password cannot grant admin
-rights to a remote Kindle. The local KOReader owner uses its private controller
-key to manage the host. Other Kindles join with approved member accounts.
+Host a chat starts this Kindle's server and signs its owner in as admin. There
+is no host password: the local KOReader controller on the Kindle running the
+server owns host controls. Other Kindles join with approved member accounts.
 Every Kindle can host its own server or join someone else's using this plugin.
 One chat is shown at a time; joining another server does not stop your own
 hosted server. Home -> Your hosted chat returns to its admin view.
@@ -165,7 +163,7 @@ Vera-jailbroken Kindle 12th generation (2024), firmware 5.20.2 remain unverified
 
 DEVELOPER BUILD (OPTIONAL, PC ONLY)
 Install Go 1.27.4 and Zig 0.17.1 on the build PC, then run:
-  python tools/build-koreader.py --scan
+  python tools/build-koreader.py --skip-tests --scan
 This builds the compact statically linked ARM service and creates only the
 KOReader folder/ZIP plus its source ZIP. Tests require an installed PC C compiler
 (Zig is used). LuaJIT contract tests additionally use Python 3.14 and lupa 2.8:

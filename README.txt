@@ -1,4 +1,4 @@
-NEIGHBOUR CHAT 7.1 - KOREADER ONLY
+NEIGHBOUR CHAT 7.2 - KOREADER ONLY
 
 Ready-to-copy folder: dist/neighbourchat.koplugin
 Download ZIP: dist/NeighbourChat-KOReader.zip
@@ -8,8 +8,8 @@ Copy the plugin folder into KOReader/plugins, restart KOReader, and open
 Tools -> More tools -> Neighbour Chat. No installer or separate Kindle app.
 Remade Home/Chat/People/Manage navigation with large Host / Find cards.
 One plugin is both client and server: hosting makes this Kindle's owner admin.
-Admin sign-in is restricted to the machine running the server; remote member
-devices cannot gain host controls with the admin password.
+There is no host password; only the Kindle running the server receives host
+controls through its local owner controller.
 Chat includes an explicit End chat action: participants disconnect, while the
 host also stops hosting; saved messages, accounts, files and backups remain.
 Opt-in Wi-Fi discovery finds named chats without typing IP addresses. Hosts
@@ -31,6 +31,9 @@ Compilation caches, old release archives, old launchers/installers and downloade
 PC toolchains are removed from this finished workspace. Build instructions list
 the PC prerequisites for rebuilding. The copied plugin needs none of them.
 Physical Kindle operation remains unverified.
+
+7.2 removes host-password setup. The Kindle running the server receives admin
+controls automatically through its local KOReader owner session.
 
 7.1 fixes private cache/draft isolation, moderation/session races, room-change
 privacy, discovery recovery and oversized reader replies. See SECURITY-REVIEW.txt.

@@ -274,10 +274,6 @@ function Chat:render()
         title = "Starting chat"
         add("Please wait…", function() end, false)
         add("Hide", function() self:hide() end)
-    elseif s.stage == "setup" then
-        title = "Set up host"
-        add("Choose host password", function() self:setup() end)
-        add("Hide", function() self:hide() end)
     elseif s.stage == "verify" then
         title = "Verify host"
         add("Codes match — continue", function() self:action{action="confirm", token=s.verify_token} end)
@@ -421,21 +417,12 @@ end
 function Chat:login()
     local s = client.state or {}
     self:fields("Sign in", {
-        {description="Username", text=s.address == "This Kindle" and "admin" or (shared.username or "")},
+        {description="Username", text=shared.username or ""},
         {description="Password", text="", text_type="password"},
     }, function(values)
         shared.username = values[1]
         self:action{action="login", username=values[1], password=values[2]}
     end, "Sign in")
-end
-
-function Chat:setup()
-    self:fields("Choose host password", {
-        {description="Password (10+ characters)", text="", text_type="password"},
-        {description="Repeat password", text="", text_type="password"},
-    }, function(values)
-        self:action{action="setup", password=values[1], confirm=values[2]}
-    end, "Start hosting")
 end
 
 function Chat:unlock()

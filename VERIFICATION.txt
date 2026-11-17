@@ -1,5 +1,10 @@
-NEIGHBOUR CHAT 7.1 - KOREADER VERIFICATION
+NEIGHBOUR CHAT 7.2 - KOREADER VERIFICATION
 Date: 2026-11-11
+
+The 7.2 host-ownership/password-flow rewrite was cross-compiled for ARMv7 and
+the release archives were rebuilt and integrity-checked. The regression suite
+was not run for this rewrite. Earlier results below describe 7.1 only; they do
+not verify the 7.2 host setup/authentication changes.
 
 The build runs go vet and the full Go regression suite with the compact C SQLite
 driver used by the shipped plugin. The suite covers real HTTPS and pinned joins,

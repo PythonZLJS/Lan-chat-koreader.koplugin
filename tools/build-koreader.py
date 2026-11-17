@@ -81,7 +81,7 @@ for entry in sorted(set(modules.splitlines())):
             shutil.copyfile(file,licenses/(name.replace('/','_')+'-'+file.name+'.txt'))
 env=hostenv
 if args.scan:run('run','golang.org/x/vuln/cmd/govulncheck@v1.9.0','-mode=binary',str(binary))
-info={'version':'7.1','target':'linux/arm/v7','static':True,'binary_sha256':hashlib.sha256(elf).hexdigest(),'binary_bytes':len(elf),
+info={'version':'7.2','target':'linux/arm/v7','static':True,'binary_sha256':hashlib.sha256(elf).hexdigest(),'binary_bytes':len(elf),
       'native_app_installer':False,'kindle_tested':False,'compiler':run('version',output=True).strip(),
       'sqlite':'statically linked C engine; extension loading disabled','strip_c_debug':True}
 (stage/'BUILD-INFO.json').write_text(json.dumps(info,indent=2)+'\n',encoding='utf-8')
