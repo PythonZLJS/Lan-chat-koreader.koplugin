@@ -114,7 +114,15 @@ function Client:start()
     if not self.starting then
         self.starting=self.clock()+50
         if self.launch then self.launch() else
-            os.execute("nohup /bin/sh "..quote(self.path.."/runtime.sh").." </dev/null >/dev/null 2>&1 &")
+            local command = "nohup /bin/sh "..quote(self.path.."/runtime.sh").." </dev/null >/dev/null 2>&1 &"
+            local launched, result, reason, code = pcall(os.execute, command)
+            -- LuaJIT/Lua 5.1 returns a number; newer Lua returns true or
+            -- nil, reason, status. A shell-launch error should be shown now.
+            if not launched or result == nil or result == false or
+                    (type(result) == "number" and result ~= 0) then
+                self.starting = nil
+                return nil, "Could not launch the chat service: " .. tostring(launched and (reason or code or result) or result)
+            end
         end
     elseif self.clock()>self.starting then
         self.starting=nil

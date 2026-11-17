@@ -3,7 +3,6 @@ if not Device:isKindle() then return {disabled=true} end
 
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local UIManager = require("ui/uimanager")
-local NetworkMgr = require("ui/network/manager")
 local Menu = require("ui/widget/menu")
 local InputDialog = require("ui/widget/inputdialog")
 local MultiInputDialog = require("ui/widget/multiinputdialog")
@@ -14,24 +13,10 @@ local Dispatcher = require("dispatcher")
 
 local source = debug.getinfo(1, "S").source
 local path = source:match("^@(.+)/[^/]+$") or "plugins/neighbourchat.koplugin"
-local bootstrap_ok, Bootstrap = pcall(dofile, path .. "/bootstrap.lua")
+local client_ok, Client = pcall(dofile, path .. "/client.lua")
 local bootstrap_error
-if bootstrap_ok and Bootstrap and Bootstrap.ensure then
-    local ok, ensured, detail = pcall(Bootstrap.ensure, path)
-    if not ok then
-        bootstrap_error = tostring(ensured)
-    elseif not ensured then
-        bootstrap_error = tostring(detail or "Neighbour Chat package verification failed.")
-    end
-else
-    bootstrap_error = "Neighbour Chat bootstrap is missing or damaged."
-end
-local client_ok, Client = false, nil
-if not bootstrap_error then
-    client_ok, Client = pcall(dofile, path .. "/client.lua")
-    if not client_ok or type(Client) ~= "table" then
-        bootstrap_error = "Neighbour Chat client.lua could not be loaded safely."
-    end
+if not client_ok or type(Client) ~= "table" then
+    bootstrap_error = "Neighbour Chat client.lua could not be loaded safely: " .. tostring(Client)
 end
 if not Client then
     Client = {}
