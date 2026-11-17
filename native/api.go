@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -237,6 +238,17 @@ func (a *API) login(w http.ResponseWriter, r *http.Request, s APISession) {
 	if !a.Rate.Allow("login-ip:"+clientIP(r), 30, 10*time.Minute) || !a.Rate.Allow("login-name:"+v.Username, 15, 10*time.Minute) {
 		apiError(w, 429, "Too many sign-in attempts. Wait 10 minutes.")
 		return
+	}
+	// The admin credential belongs to the machine hosting this server. A
+	// remote member must never gain host control by learning that password.
+	// The in-process web UI and the capability-protected reader controller
+	// reach the API through loopback; LAN clients have a non-loopback peer IP.
+	if v.Username == "admin" {
+		ip := net.ParseIP(clientIP(r))
+		if ip == nil || !ip.IsLoopback() {
+			apiError(w, 403, "Host admin sign-in is only available on the device running this server.")
+			return
+		}
 	}
 	adminHash, version := a.Store.adminState()
 	hash := adminHash

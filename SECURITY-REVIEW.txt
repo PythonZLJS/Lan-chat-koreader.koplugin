@@ -44,6 +44,12 @@ FIXED FINDINGS
    now atomically verifies and consumes the still-live old session exactly once.
    Test: TestConcurrentSessionRotationCannotForkOneCookie (24 concurrent calls).
 
+7. High (authorization): the shared host admin password could be used from any
+   LAN device to claim the server's admin role. Admin password login is now
+   accepted only from loopback, which is used by the host's local web UI. The
+   server's capability-protected local owner session remains the KOReader
+   admin path; remote devices must use approved member accounts.
+
 7. Medium (availability): local owner login depended on creating an anonymous
    network session. Guest rate limits or a full session table could block the
    Kindle owner from administering their own server. There is now one reserved,

@@ -8,6 +8,8 @@ Copy the plugin folder into KOReader/plugins, restart KOReader, and open
 Tools -> More tools -> Neighbour Chat. No installer or separate Kindle app.
 Remade Home/Chat/People/Manage navigation with large Host / Find cards.
 One plugin is both client and server: hosting makes this Kindle's owner admin.
+Admin sign-in is restricted to the machine running the server; remote member
+devices cannot gain host controls with the admin password.
 Chat includes an explicit End chat action: participants disconnect, while the
 host also stops hosting; saved messages, accounts, files and backups remain.
 Opt-in Wi-Fi discovery finds named chats without typing IP addresses. Hosts

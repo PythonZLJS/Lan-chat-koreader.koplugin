@@ -1,7 +1,0 @@
-/build/
-/dist/
-/data/
-*.log
-
-/koreader/build/
-**/__pycache__/

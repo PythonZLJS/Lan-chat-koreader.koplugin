@@ -5,8 +5,8 @@ import hashlib
 import json
 import os
 import shutil
-import struct
 import stat
+import struct
 import subprocess
 import zipfile
 
@@ -14,6 +14,7 @@ ROOT=Path(__file__).resolve().parents[1]
 DIST=ROOT/'dist'
 parser=argparse.ArgumentParser()
 parser.add_argument('--scan',action='store_true')
+parser.add_argument('--skip-tests',action='store_true',help='Compile and package without running Go vet/regression tests')
 args=parser.parse_args()
 compiler=ROOT/'build/go-tools/go1.27.4/go/bin/go.exe'
 go=str(compiler) if compiler.is_file() else shutil.which('go')
@@ -36,8 +37,9 @@ env['CC']='"'+zig.replace('\\','/')+'" cc -target '+host_target
 def run(*command,output=False):
     return subprocess.run([go,*command],cwd=ROOT/'native',env=env,check=True,text=True,
                           stdout=subprocess.PIPE if output else None).stdout
-run('vet','-tags='+tags,'./...')
-run('test','-tags='+tags,'-count=1','-timeout=90s','./...')
+if not args.skip_tests:
+    run('vet','-tags='+tags,'./...')
+    run('test','-tags='+tags,'-count=1','-timeout=90s','./...')
 if args.scan: run('run','golang.org/x/vuln/cmd/govulncheck@v1.9.0','-tags='+tags,'./...')
 DIST.mkdir(exist_ok=True)
 stage=DIST/'neighbourchat.koplugin'
@@ -46,7 +48,7 @@ assert stage.resolve().is_relative_to(DIST.resolve()) and stage.name=='neighbour
 def remove_readonly(function,path,error):
     resolved=Path(path).resolve()
     assert resolved==stage.resolve() or resolved.is_relative_to(stage.resolve())
-    os.chmod(path,stat.S_IREAD|stat.S_IWRITE|stat.S_IEXEC)
+    os.chmod(path,stat.S_IREAD|stat.S_IWRITE|stat.S_IXUSR)
     function(path)
 if stage.exists(): shutil.rmtree(stage,onexc=remove_readonly)
 shutil.copytree(ROOT/'koreader/neighbourchat.koplugin',stage)
@@ -62,15 +64,6 @@ assert elf[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',elf,18)[0]==40
 offset=struct.unpack_from('<I',elf,28)[0]
 size,count=struct.unpack_from('<HH',elf,42)
 assert all(struct.unpack_from('<I',elf,offset+i*size)[0]!=3 for i in range(count))
-recovery=stage/'recovery'
-(recovery/'bin').mkdir(parents=True)
-shutil.copyfile(stage/'client.lua', recovery/'client.lua')
-shutil.copyfile(stage/'runtime.sh', recovery/'runtime.sh')
-shutil.copyfile(binary, recovery/'bin/neighbour-chat')
-manifest=[]
-for relative in ['client.lua','runtime.sh','bin/neighbour-chat']:
-    manifest.append(hashlib.sha256((stage/relative).read_bytes()).hexdigest()+'  '+relative)
-(stage/'payload.sha256').write_text('\n'.join(manifest)+'\n',encoding='ascii')
 licenses=stage/'LICENSES';licenses.mkdir()
 compiler_root=Path(go).resolve().parents[1]
 if not (compiler_root/'LICENSE').exists(): compiler_root=Path(run('env','GOROOT',output=True).strip())

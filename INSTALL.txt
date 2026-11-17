@@ -24,9 +24,10 @@ Android/Kobo/desktop plugin or a jailbreak/KOReader installer.
 HOST OR JOIN - SAME APP ON EVERY KINDLE
 Home has three large controls: Host a chat, Find a chat and Recent chats.
 Host a chat starts this Kindle's server and signs its owner in as admin.
-A fresh installation first asks for a host password of at least 10 characters;
-that password protects remote admin login. The local KOReader owner uses its
-private controller key to manage this Kindle without retyping that password.
+A fresh installation asks the server owner to set a local admin password.
+Admin rights stay on the device running the server; remote devices cannot gain
+host controls with that password. Other Kindles join with approved member
+accounts, while the server's local KOReader controller manages the host.
 Every Kindle can host its own server or join someone else's using this plugin.
 One chat is shown at a time; joining another server does not stop your own
 hosted server. Home -> Your hosted chat returns to its admin view.
